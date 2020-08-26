@@ -1,4 +1,3 @@
-import pickle
 import sys
 sys.path.append('../')
 from util import minusMinutes, gameMarkToDir, LoadPickle
@@ -7,7 +6,7 @@ from util import minusMinutes, gameMarkToDir, LoadPickle
 class Play:
     # 构造参数：本条play的list，本节序号，主要关注球员唯一识别号，球员主客场
     def __init__(self, lst, ind, pm=None, HOA=None, HomeOrAts=[[4, 5], [2, 1]]):
-        self.play = lst
+        self.play = lst    # 0:时间, 1:客队描述, 2:客队加分, 3:比分, 4:主队加分, 5:主队描述
         self.quarter = ind
         self.HOA = HOA
         self.pm = pm
@@ -19,7 +18,7 @@ class Play:
         self.oppoPlayDisc = self.play[self.oppoHomeOrAt[1]]\
             if len(self.play) == 6 and self.oppoHomeOrAt != None else None
         
-
+    # 无偏方法（无主客队之分）
     def time(self):    # 当前时间（本节倒计时）
         return self.play[0]
     
@@ -46,6 +45,26 @@ class Play:
             else:
                 return 1, diff    # 0客1主
     
+    def playRecord(self):
+        if len(self.play) == 6:    # 是一条完整比赛记录
+            return True
+        return False
+    
+    def record(self, jumpball=False):    # 返回本条记录主要内容
+        if not jumpball:
+            if self.playRecord():
+                return self.play[1] if self.play[1] else self.play[5],\
+                       1 if self.play[1] else 5
+            else:
+                return '', -1
+        else:
+            if len(self.play) == 2 and 'Jump Ball' in self.play[1]:
+                return self.play[1]
+            else:
+                return ''
+    
+    
+    # 有/无偏方法
     def score(self, ind=None):    # 返回得分或投失分数值
         if ind != None:
             statement = self.play[ind]
@@ -58,11 +77,8 @@ class Play:
         elif '3-pt' in statement:
             return 3
     
-    def playRecord(self):
-        if len(self.play) == 6:    # 是一条完整比赛记录
-            return True
-        return False
     
+    # 有偏方法（有主客队之分）
     def teamPlay(self):
         if self.playDisc:    # 主队有比赛情况记录
             return True
@@ -167,12 +183,13 @@ class Shooting:
 
 class Game:
     # 构造参数：比赛唯一识别号，球员本队，常规赛or季后赛，对手球队简写
-    def __init__(self, gm, team, ROP, op, HomeOrAts=[[4, 5], [2, 1]]):
+    def __init__(self, gm, ROP, team=None, op=None, HomeOrAts=[[4, 5], [2, 1]]):
         self.gamemark = gm    # 比赛唯一识别号
         self.gameflow = LoadPickle(gameMarkToDir(gm, ROP))    # 比赛过程详细记录
-        self.HOA = 1 if team == gm[-3:] else 0    # 0客1主
-        self.hometeam = team if self.HOA else op
-        self.roadteam = op if self.HOA else team
+        if team:
+            self.HOA = 1 if team == gm[-3:] else 0    # 0客1主
+            self.hometeam = team if self.HOA else op
+            self.roadteam = op if self.HOA else team
         self.quarters = len(self.gameflow)
         self.playFoulTime = []
     
@@ -185,11 +202,22 @@ class GameShooting:
     def __init__(self, gm, ROP, HOA=None):
         self.gamemark = gm
         self.gameflow = LoadPickle(gameMarkToDir(gm, ROP, shot=True))
-        self.HOA = HOA
+        self.HOA = HOA if HOA != None else None
         
-    def yieldShooting(self):
-        for p in self.gameflow[self.HOA]:
-            yield p
+    def yieldPlay(self):
+        if self.HOA != None:
+            for p in self.gameflow[self.HOA]:
+                yield p
+        else:
+            for i in range(2):
+                for p in self.gameflow[i]:
+                    yield p
+
+
+
+
+
+
 
 
 
