@@ -3,11 +3,13 @@ import matplotlib.image as mpimg
 import matplotlib.patches as mpathes
 from util import LoadPickle, yieldGames, gameMarkToDir, getCode
 from klasses.Player import Player
+from klasses.clrbr import cs
 import math
 import pickle
 import os
 import numpy as np
 import matplotlib.colors as Mcolors
+
 
 #%%
 def distance(p1, p2):
@@ -17,6 +19,7 @@ def distance(p1, p2):
 def angle(p1, p2):
     direct = 'right' if p2[1] > p1[1] else 'left'
     return math.degrees(math.atan((p2[0] - p1[0]) / (p2[1] - p1[1]))), direct
+
 
 def zone(ang, di, p=2):
     if p == 2:
@@ -72,15 +75,8 @@ def getCor(center, radius, angle, left=True):
     ans = [center[0] + yPlus, center[1] - xPlus] if left else [center[0] + yPlus, center[1] + xPlus]
     return ans
 
-R = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-     10, 25, 50, 75, 100, 120, 140, 160, 170, 180, 190, 200, 210, 220]
-G = [30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250,
-     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]
-B = [255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 250,
-     240, 230, 220, 210, 200, 190, 180, 170, 160, 150, 140, 130, 120,
-     105, 90, 60, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+cs = np.array(cs) / 255.0
 HomeOrAts = [[4, 5], [2, 1]]    # 主，客
 marginX = 5
 marginY = 10
@@ -105,10 +101,10 @@ for i in playerInf[1:]:
             players.append([playerName, playerMark])
 
 #%%
-regularOrPlayoff = 0
+regularOrPlayoff = 1
 ROP = regularOrPlayoffs[regularOrPlayoff]
-for i in players[35:36]:
-    print("starting analysing %s's games ..." % i[0])
+for i in players:
+    print("Analysing player: %s ..." % i[0])
     player = Player(i[1], ROP)
     missing_shot = 0
     areaPct = np.zeros((21,3))    #0miss1make
@@ -243,7 +239,7 @@ for i in players[35:36]:
         pp =  49
     else:
         pp = int(round((pmax - areaPct[0, 2]*100)*factor)//2)
-    fc = [B[pp]/255, G[pp]/255, R[pp]/255]
+    fc = cs[pp]
     ax.text(249.5, 35,
             '%d/%d\n%.2f%%' % (areaPct[0, 1],
                                areaPct[0, 0]+areaPct[0, 1],
@@ -257,7 +253,9 @@ for i in players[35:36]:
         if areaPct[j+1, 0] + areaPct[j+1, 1] > 0:
             cor = getCor(center, dist[j], ang[j], left=LOR[j])
             pp = int(round((pmax - areaPct[j+1, 2]*100)*factor)//2)
-            fc = [B[pp]/255, G[pp]/255, R[pp]/255]
+            if pp > 49:
+                pp = 49
+            fc = cs[pp]
             ax.text(cor[1], cor[0],
                     '%d/%d\n%.2f%%' % (areaPct[j+1, 1],
                                        areaPct[j+1, 0]+areaPct[j+1, 1],
@@ -274,7 +272,7 @@ for i in players[35:36]:
             pp = int(round((pmax - areaPct[j+13, 2]*100)*factor)//2)
             if pp > 49:
                 pp = 49
-            fc = [B[pp]/255, G[pp]/255, R[pp]/255]
+            fc = cs[pp]
             ax.text(cor[1], cor[0],
                     '%d/%d\n%.2f%%' % (areaPct[j+13, 1],
                                        areaPct[j+13, 0]+areaPct[j+13, 1],
@@ -282,10 +280,10 @@ for i in players[35:36]:
                     fontsize=5, 
                     bbox=dict(boxstyle='round, pad=0.5', fc=fc, ec='k', lw=1 ,alpha=0.6))
     
-    Xcolor = []
-    for c in range(len(R)):
-        Xcolor.append([B[c]/255, G[c]/255, R[c]/255])
-    cmap = Mcolors.ListedColormap(Xcolor[::-1], 'indexed')
+    # Xcolor = []
+    # for c in range(len(R)):
+        # Xcolor.append([B[c]/255, G[c]/255, R[c]/255])
+    cmap = Mcolors.ListedColormap(cs[::-1], 'indexed')
     psm = ax.pcolormesh([[], []], cmap=cmap, rasterized=True)
     # colorPosi = plt.gcf().add_axes([0.92, 0.25, 0.01, 0.5])
     cl = plt.gcf().colorbar(psm, ax=ax, shrink=.9)

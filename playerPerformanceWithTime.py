@@ -6,24 +6,22 @@ from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 from util import gameMarkToDir, minusMinutes, playerPerformanceWithTime, addMinutes
 from pylab import *
-mpl.rcParams['font.sans-serif'] = ['SimHei']    # 解决中文乱码
+mpl.rcParams['font.sans-serif'] = ['STXinwei']    # 解决中文乱码
 plt.rcParams['axes.unicode_minus'] = False    # 解决坐标轴符号显示异常
 # plt.style.use('ggplot')    # 固定风格绘图
 # plt.rcParams['axes.facecolor'] = 'white'    # 背景设置为白色
 
 regularOrPlayoffs = ['regular', 'playoff']
 HomeOrAts = [[4, 5], [2, 1]]    # 主，客
-colors = ['#FF8C00', '#FF0000', '#FFFF00',    # 0分差、1得分、2前板
-          '#000080', '#32CD32', '#FF00FF',    # 3后板、4篮板、5助攻
-          '#00BFFF', '#13EAC9', '#7B0323',    # 6助攻得分、7抢断、8盖帽
-          '#000000', '#6B7C85', '#C1F80A']    # 9失误、10犯规、11时间
+colors = ['#FF8C00', '#FF0000', '#FFFF00',    # 分差、得分、前板
+          '#000080', '#32CD32', '#FF00FF',    # 后板、篮板、助攻
+          '#00BFFF', '#13EAC9', '#7B0323',    # 助攻得分、抢断、盖帽
+          '#000000', '#6B7C85', '#C1F80A']    # 失误、犯规、时间
 
 inter = 15
 f = open('./data/playerBasicInformation.pickle', 'rb')
 playerInf = pickle.load(f)
 f.close()
-
-#%%
 players = []
 for i in playerInf[1:]:
     playerName, playerMark = i[0],i[1].split('/')[-1].rstrip('.html')
