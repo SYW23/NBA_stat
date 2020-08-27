@@ -1,36 +1,23 @@
 import sys
 sys.path.append('../')
-from util import LoadPickle
+import pandas as pd
 from klasses.stats_items import regular_items, playoff_items
+import numpy as np
 
-class Player():
+class Player(object):
     def __init__(self, pm, ROP):    # 构造参数：球员唯一识别号，常规赛or季后赛
         self.pm = pm
-        self.playerFileDir = 'D:/sunyiwu/stat/data/players/' + pm + '/%sGames/%sGameBasicStat.pickle' % (ROP, ROP)
+        self.playerFileDir = 'D:/sunyiwu/stat/data/players/' + pm + '/%sGames/%sGameBasicStat.csv' % (ROP, ROP)
         self.ROP = ROP
-        self.games = LoadPickle(self.playerFileDir)
-        self.seasons = len(self.games)\
-                          if ROP == 'regular'\
-                          else len(self.games) - 1
+        self.games = pd.read_csv(self.playerFileDir)
+        self.seasons = np.sum(self.games['G'] == 'G') + 1
+        self.season_index = [-1] + list(self.games[self.games['G'].isin(['G'])].index) + [self.games.shape[0]]
     
-    def yieldSeasons(self, pt=True):
-        for season in range(self.seasons):
-            s = self.games[season] if self.ROP == 'regular'\
-                                   else self.games[season + 1]
-            if s or (len(s) == 1 and s == ['G', 'Date', 'Age', 'Tm', '', 'Opp',
-                                           '', 'GS', 'MP', 'FG', 'FGA', 'FG%',
-                                           '3P', '3PA', '3P%', 'FT', 'FTA',
-                                           'FT%', 'ORB', 'DRB', 'TRB', 'AST',
-                                           'STL', 'BLK', 'TOV', 'PF', 'PTS',
-                                           'GmSc', '+/-']):
-                if pt:
-                    if self.ROP != 'regular':
-                        print('season %s' % s[0][0][1][:4])
-                    else:
-                        print('season %s' % s[1][1][:4])
-                yield s
+    def yieldSeasons(self):    # 按赛季返回
+        for i in range(self.seasons):
+            yield self.games.loc[self.season_index[i]+1:self.season_index[i+1]-1]
     
-    def yieldGames(self, season):
+    def yieldGames(self, season, del_absent=True):    # 按单场比赛返回
         '''
         现代：
         常规赛
@@ -46,23 +33,18 @@ class Player():
          18: 'FT%', 19: 'ORB', 20: 'DRB', 21: 'TRB', 22: 'AST', 23: 'STL',
          24: 'BLK', 25: 'TOV', 26: 'PF', 27: 'PTS', 28: 'GmSc', 29: '+/-'}
         '''
-        if self.ROP == 'regular':
-            for g in season[1:]:
-                yield g
-        else:
-            if season and season[0] != 'G':
-                for s in season:
-                    for g in s:
-                        yield g
-    
+        if del_absent:
+            season = season.loc[season['G'].notna()]
+        season = season.where(season.notnull(), '')
+        for i in season.values:
+            yield i
+
     def seasonAVE(self, ind, item, ROP):
         # 求取赛季平均，传入参数：赛季序号、统计项名称、常规赛or季后赛
-        s = 0
-        seas = self.games[ind][1:]
+        season_games = self.games.loc[self.season_index[ind]+1:self.season_index[ind+1]-1]
+        season_games = self.season_games.loc[season_games['G'].notna()]    # 去除未出场的比赛
         i = regular_items[item] if ROP == 'regular' else playoff_items[item]
-        for g in seas:
-            s += int(g[i])
-        return s / len(seas)
+        return np.mean(season_games.iloc[:, i].astype(np.float64))
     
     def searchGame(self, comboboxs, stats):
         # 单场比赛数据查询
@@ -75,10 +57,10 @@ class Player():
             return [-1]
         RP = 1 if self.ROP == 'regular' else 0
         resL = []
-        for s in self.yieldSeasons(pt=False):
+        for s in self.yieldSeasons():
             for game in self.yieldGames(s):
                 res = 1
-                for i, item in enumerate(game + ['']):
+                for i, item in enumerate(list(game) + ['']):
                     if stats[i].get():    # 本项数据统计有设置
                         if comboboxs[i].get() in ['    >=', '    <=']:    # 数值或字符串比较
                             if i == 1:    # 日期
