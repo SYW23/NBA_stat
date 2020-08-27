@@ -43,21 +43,40 @@ class Player(object):
         for i in season.values:
             yield i
 
-    def seasonAVE(self, ind, item, ROP):
+    def _get_item(self, item, season_index=None):
+        i = regular_items[item] if self.ROP == 'regular' else playoff_items[item]
+        if season_index:
+            season_games = self.games.loc[self.season_index[season_index - 1] + 1:
+                                          self.season_index[season_index] - 1]
+            season_games = season_games.loc[season_games['G'].notna()]  # 去除未出场的比赛
+            return season_games.iloc[:, i]
+        else:
+            gs = self.games[self.games['G'] != 'G']
+            vs = gs.iloc[:, i]
+            return vs[vs.notna()]
+
+    def seasonAVE(self, ind, item):
         # 求取赛季平均，传入参数：赛季序号、统计项名称、常规赛or季后赛
-        season_games = self.games.loc[self.season_index[ind] + 1:self.season_index[ind + 1] - 1]
-        season_games = self.season_games.loc[season_games['G'].notna()]  # 去除未出场的比赛
-        i = regular_items[item] if ROP == 'regular' else playoff_items[item]
-        return np.mean(season_games.iloc[:, i].astype(np.float64))
+        return np.mean(self._get_item(item, season_index=ind).astype(np.float64))
+
+    def average(self, item):
+        return np.mean(self._get_item(item).astype(np.float64))
+
+    def seasonSUM(self, ind, item):
+        # 求取赛季平均，传入参数：赛季序号、统计项名称、常规赛or季后赛
+        return np.sum(self._get_item(item, season_index=ind).astype(np.float64))
+
+    def sum(self, item):
+        return np.sum(self._get_item(item).astype(np.float64))
 
     def searchGame(self, comboboxs, stats):
         # 单场比赛数据查询
         flag = 0
         for i in stats:
-            if i.get():  # 未设置查询条件
+            if i:    # 判断是否设置查询条件
                 flag = 1
                 break
-        if not flag:  # 未设置查询条件，返回[-1]
+        if not flag:    # 未设置查询条件，返回[-1]
             return [-1]
         RP = 0 if self.ROP == 'regular' else 1
         resL = []
@@ -66,21 +85,21 @@ class Player(object):
             for game in self.yieldGames(s):
                 res = 1
                 for i, item in enumerate(list(game) + ['']):
-                    if stats[i].get():  # 本项数据统计有设置
-                        if comboboxs[i].get() in ['    >=', '    <=']:  # 数值或字符串比较
+                    if stats[i]:  # 本项数据统计有设置
+                        if comboboxs[i] in ['    >=', '    <=']:  # 数值或字符串比较
                             if i == 1:  # 日期
                                 x = item[:8]
-                                y = stats[i].get()
+                                y = stats[i]
                             elif (not RP and (i == 2 or i == 8)) or (RP and i == 9):  # 年龄或上场时间
                                 x = item[:2] + item[3:]
-                                y = stats[i].get()[:2] + stats[i].get()[3:]
+                                y = stats[i][:2] + stats[i][3:]
                             elif (not RP and i == 29) or (RP and i == 30):  # 分差
                                 x = game[6][3:-1] if not RP else game[7][3:-1]
-                                y = stats[i].get()
+                                y = stats[i]
                             else:
                                 x = item
-                                y = stats[i].get()
-                            if not eval(x + comboboxs[i].get() + y):
+                                y = stats[i]
+                            if not eval(x + comboboxs[i] + y):
                                 res = 0
                                 break
                         else:  # 字符串相等比较
@@ -90,7 +109,7 @@ class Player(object):
                                 x = item[0]
                             else:
                                 x = item
-                            if not eval('\'%s\'%s\'%s\'' % (x, comboboxs[i].get(), stats[i].get())):
+                            if not eval('\'%s\'%s\'%s\'' % (x, comboboxs[i], stats[i].get())):
                                 res = 0
                                 break
                 if res:  # 符合条件，添加至结果列表
@@ -136,7 +155,7 @@ class Player(object):
                         sum_time = addMinutes(sum_time, i + '.0')
                     sum_time = sum_time[:-2]
                     [min, sec] = sum_time.split(':')
-                    ss = eval(min + '*60+' + sec)
+                    ss = eval(min + '*60+' + str(int(sec)))
                     ss /= (60 * tmp.shape[0])
                     ss = math.modf(ss)
                     ave_time = '%d:%02d' % (ss[1], ss[0] * 60)

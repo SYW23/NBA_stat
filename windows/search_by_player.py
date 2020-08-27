@@ -12,7 +12,7 @@ from klasses.stats_items import regular_items, playoff_items
 from klasses.Player import Player
 
 
-class show_list_results(object):
+class Show_list_results(object):
     def __init__(self, res, columns):
         self.fontsize = 10
         self.col_w = 25
@@ -35,7 +35,7 @@ class show_list_results(object):
     def tree_generate(self):
         # 定义各列列宽及对齐方式
         for i in self.columns:
-            if i == '日期':
+            if i in ['日期', '赛果', '上场时间']:
                 self.tree.column(i, width=120, anchor='center')
             else:
                 self.tree.column(i, width=100, anchor='center')
@@ -75,7 +75,7 @@ class Search_by_plyr(object):
         self.pn2pm = dict(zip(self.pm2pn.values(), self.pm2pn.keys()))
         self.ROP_dict = {'regular': '常规赛', 'playoff': '季后赛'}
         self.wd = Tk()
-        self.wd.title('数据查询器')
+        self.wd.title('球员数据查询器')
         self.wd.iconbitmap('../images/nbahalfcourt.ico')
         # wd.resizable(width=True, height=True)
         self.wd.geometry('+500+20')
@@ -98,10 +98,8 @@ class Search_by_plyr(object):
             gl['value'] = ['    ==']
         gl.current(0)
         ent = Entry(self.wd, width=10)
-
         self.comboboxs.append(gol)
         self.stats.append(ent)
-
         gl.grid(row=row, column=c+1, padx=self.padding, pady=self.padding)
         ent.grid(row=row, column=c+2, padx=self.padding, pady=self.padding)
 
@@ -131,13 +129,19 @@ class Search_by_plyr(object):
                 messagebox.showinfo('提示', '球员姓名不存在！')
                 return
             player = Player(self.pn2pm[self.plyr_ent_value.get()], self.v.get())
-            res = player.searchGame(self.comboboxs, self.stats)
+            cc = []
+            ss = []
+            assert len(self.comboboxs) == len(self.stats)
+            for i in range(len(self.stats)):
+                cc.append(self.comboboxs[i].get())
+                ss.append(self.stats[i].get())
+            res = player.searchGame(cc, ss)
             if res == [-1]:
                 messagebox.showinfo('提示', '请设置查询条件！')
             else:
                 if res:
                     RP = regular_items if self.v.get() == 'regular' else playoff_items
-                    result_window = show_list_results(res, list(RP.keys()))
+                    result_window = Show_list_results(res, list(RP.keys()))
                     result_window.title('%s %s 查询结果' % (self.plyr_ent_value.get(), self.ROP_dict[self.v.get()]))
                     result_window.loop(' 共查询到%d条记录' % (len(res) - 2))
                 else:
@@ -174,5 +178,6 @@ class Search_by_plyr(object):
         self.wd.mainloop()
 
 
-search_by_player_window = Search_by_plyr()
-search_by_player_window.loop()
+if __name__ == '__main__':
+    search_by_player_window = Search_by_plyr()
+    search_by_player_window.loop()
