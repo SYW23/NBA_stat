@@ -139,7 +139,7 @@ class Search_by_plyr(object):
                     RP = regular_items if self.v.get() == 'regular' else playoff_items
                     result_window = show_list_results(res, list(RP.keys()))
                     result_window.title('%s %s 查询结果' % (self.plyr_ent_value.get(), self.ROP_dict[self.v.get()]))
-                    result_window.loop(' 共查询到%d条记录' % len(res))
+                    result_window.loop(' 共查询到%d条记录' % (len(res) - 2))
                 else:
                     messagebox.showinfo('提示', '未查询到符合条件的数据！')
         else:
