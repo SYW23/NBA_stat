@@ -69,54 +69,59 @@ class Player(object):
     def sum(self, item):
         return np.sum(self._get_item(item).astype(np.float64))
 
-    def searchGame(self, comboboxs, stats):
+    def searchGame(self, stats):
+        print(stats)
         # 单场比赛数据查询
-        flag = 0
-        for i in stats:
-            if i:    # 判断是否设置查询条件
-                flag = 1
-                break
-        if not flag:    # 未设置查询条件，返回[-1]
-            return [-1]
-        RP = 0 if self.ROP == 'regular' else 1
+        RP = regular_items if self.ROP == 'regular' else playoff_items
         resL = []
         WOL = [0, 0]  # 胜负统计
         for s in self.yieldSeasons():
             for game in self.yieldGames(s):
                 res = 1
-                for i, item in enumerate(list(game) + ['']):
-                    if stats[i]:  # 本项数据统计有设置
-                        if comboboxs[i] in ['    >=', '    <=']:  # 数值或字符串比较
-                            if i == 1:  # 日期
-                                x = item[:8]
-                                y = stats[i]
-                            elif (not RP and (i == 2 or i == 8)) or (RP and i == 9):  # 年龄或上场时间
-                                x = item[:2] + item[3:]
-                                y = stats[i][:2] + stats[i][3:]
-                            elif (not RP and i == 29) or (RP and i == 30):  # 分差
-                                x = game[6][3:-1] if not RP else game[7][3:-1]
-                                y = stats[i]
+                for k in stats:
+                    if stats[k][0] == -1:    # 相等比较
+                        if k == '主客场':
+                            x = '0' if game[RP[k]] else '1'
+                        elif k == '赛果':
+                            x = game[RP[k]][0]
+                        else:
+                            x = game[RP[k]]
+                        if not eval('%s%s%s' % (x, '==', stats[k][1])):
+                            res = 0
+                            break
+                    else:
+                        if k == '日期':
+                            x = game[RP[k]][:8]
+                        elif k in ['年龄', '上场时间']:
+                            x = game[RP[k]][:2] + game[RP[k]][3:]
+                            # y = stats[i][:2] + stats[i][3:]
+                        elif k == '分差':
+                            x = game[6][3:-1] if not RP else game[7][3:-1]
+                        else:
+                            x = game[RP[k]]
+                        if stats[k][0] == 2:    # 区间比较
+                            if k in ['年龄', '上场时间']:
+                                y = [stats[k][1][0][:2] + stats[k][1][0][3:],
+                                     stats[k][1][1][:2] + stats[k][1][1][3:]]
                             else:
-                                x = item
-                                y = stats[i]
-                            if not eval(x + comboboxs[i] + y):
+                                y = [stats[k][1][0], stats[k][1][1]]
+                            if not eval(x + '>=' + y[0] + ' and ' + x + '<=' + y[1]):
                                 res = 0
                                 break
-                        else:  # 字符串相等比较
-                            if i == 4:  # 主客场
-                                x = 0 if item else 1
-                            elif (not RP and i == 6) or (RP and i == 7):  # 赛果
-                                x = item[0]
+                        else:    # 大于或小于
+                            if k in ['年龄', '上场时间']:
+                                y = stats[k][1][:2] + stats[k][1][0][3:]
                             else:
-                                x = item
-                            if not eval('\'%s\'%s\'%s\'' % (x, comboboxs[i], stats[i].get())):
+                                y = stats[k][1]
+                            comp = '<=' if stats[k][0] else '>='
+                            if not eval(x + comp + y):
                                 res = 0
                                 break
                 if res:  # 符合条件，添加至结果列表
                     resL.append(game)
         # 求取平均和总和
         if resL:
-            tmp = pd.DataFrame(resL, columns=regular_items.keys() if not RP else playoff_items.keys())
+            tmp = pd.DataFrame(resL, columns=regular_items.keys() if self.ROP == 'regular' else playoff_items.keys())
             # tmp.to_csv('tmp.csv', index=None)
             ave = []
             sumn = []

@@ -7,6 +7,9 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import messagebox
 from PIL import Image, ImageTk
+import cv2
+import numpy as np
+import time
 from util import LoadPickle
 from klasses.stats_items import regular_items, playoff_items
 from klasses.Player import Player
@@ -70,75 +73,85 @@ class Search_by_plyr(object):
         self.fontsize = 10
         self.col_w = 15
         self.radiobutton_w = 5
-        self.padding = 10
+        self.paddingx = 10
+        self.paddingy = 10
         self.pm2pn = LoadPickle('../data/playermark2playername.pickle')
         self.pn2pm = dict(zip(self.pm2pn.values(), self.pm2pn.keys()))
         self.ROP_dict = {'regular': '常规赛', 'playoff': '季后赛'}
-        self.wd = Tk()
-        self.wd.title('球员数据查询器')
-        self.wd.iconbitmap('../images/nbahalfcourt.ico')
+        self.wd_ = Tk()
+        self.wd_.title('球员数据查询器')
+        self.wd_.iconbitmap('../images/nbahalfcourt.ico')
         # wd.resizable(width=True, height=True)
-        self.wd.geometry('+500+20')
-        self.comboboxs = []
-        self.stats = []
+        self.wd_.geometry('+500+20')
+        self.stats_setting = {}
         self.plyr_ent_value = StringVar()
         self.plyr_ent_value.set('LeBron James')
         self.v = StringVar()
         self.v.set(None)
-        self.wd.bind("<Return>", self.search_enter)
+        self.wd = Frame(self.wd_)
+        self.wd.grid(sticky='w')
+        self.wd_.bind("<Return>", self.search_enter)
+        self.grid_posi = {'比赛序号': [15, 0], '日期': [15, 1], '年龄': [16, 0], '主队': [1, 0], '主客场': [1, 1],
+                          '对手': [2, 0], '赛果': [2, 1], '是否首发': [3, 0], '轮次': [3, 1], '上场时间': [4, 1],
+                          '命中数': [9, 0], '出手数': [9, 1], '命中率': [10, 0], '三分球命中数': [11, 0],
+                          '三分球出手数': [11, 1], '三分球命中率': [12, 0], '罚球命中数': [13, 0],
+                          '罚球出手数': [13, 1], '罚球命中率': [14, 0], '前场篮板': [6, 0], '后场篮板': [6, 1],
+                          '篮板': [5, 0], '助攻': [5, 1], '抢断': [7, 0], '盖帽': [7, 1], '失误': [8, 0],
+                          '犯规': [8, 1], '得分': [4, 0], '比赛评分': [16, 1], '正负值': [17, 0], '本轮比赛序号': [16, 0]}
 
     def place_stat(self, text, row, c):
         Label(self.wd, text=text + ':', font=('SimHei', self.fontsize), width=self.col_w, height=1,
-              anchor='e').grid(padx=self.padding, pady=self.padding, row=row, column=c)
-        gol = StringVar()
-        gl = ttk.Combobox(self.wd, width=5, textvariable=gol)
+              anchor='e').grid(padx=self.paddingx, pady=self.paddingy, row=row, column=c)
         if text not in ['主队', '主客场', '对手', '赛果', '是否首发', '轮次']:
-            gl['value'] = ['    >=', '    <=']
+            ent1 = Entry(self.wd, width=10)
+            ent2 = Entry(self.wd, width=10)
+            Label(self.wd, text='-', font=('SimHei', self.fontsize), width=self.col_w // 3, height=1,
+                  anchor='center').grid(padx=self.paddingx//2, pady=self.paddingy, row=row, column=c + 2)
+            ent1.grid(row=row, column=c + 1, padx=self.paddingx//2, pady=self.paddingy)
+            ent2.grid(row=row, column=c + 3, padx=self.paddingx//2, pady=self.paddingy)
+            self.stats_setting[text] = [ent1, ent2]
         else:
-            gl['value'] = ['    ==']
-        gl.current(0)
-        ent = Entry(self.wd, width=10)
-        self.comboboxs.append(gol)
-        self.stats.append(ent)
-        gl.grid(row=row, column=c+1, padx=self.padding, pady=self.padding)
-        ent.grid(row=row, column=c+2, padx=self.padding, pady=self.padding)
+            ent = Entry(self.wd, width=20)
+            ent.grid(row=row, column=c + 1, columnspan=3, padx=self.paddingx//2, pady=self.paddingy)
+            self.stats_setting[text] = [ent]
 
-    def selection(self):
-        if len(self.stats) == 30:
-            for i in range(3):
-                self.wd.grid_slaves()[0].grid_remove()
+    def ROPselection(self):
+        for i in self.wd.grid_slaves()[:-7]:
+            i.grid_remove()
         ROP = regular_items if self.v.get() == 'regular' else playoff_items
-        self.comboboxs.clear()
-        self.stats.clear()
+        self.stats_setting.clear()
         for i, k in enumerate(ROP.keys()):
-            if i % 2 == 0:
-                self.place_stat(k, i//2 + 2, 0)
-            else:
-                self.place_stat(k, i//2 + 2, 3)
-        if i == 28:
-            self.place_stat('分差', i//2 + 2, 3)
-        else:
-            self.place_stat('分差', i//2 + 3, 0)
+            self.place_stat(k, self.grid_posi[k][0] + 2, self.grid_posi[k][1] * 4)
+        self.place_stat('比赛分差', 19, 4)
+        # print(self.stats_setting)
 
     def search_enter(self, event):    # 绑定回车键触发搜索函数
         self.search()
 
     def search(self):    # 点击按钮触发搜索函数
-        if self.stats:
+        if self.stats_setting:
             if self.plyr_ent_value.get() not in self.pn2pm.keys():
                 messagebox.showinfo('提示', '球员姓名不存在！')
                 return
             player = Player(self.pn2pm[self.plyr_ent_value.get()], self.v.get())
-            cc = []
-            ss = []
-            assert len(self.comboboxs) == len(self.stats)
-            for i in range(len(self.stats)):
-                cc.append(self.comboboxs[i].get())
-                ss.append(self.stats[i].get())
-            res = player.searchGame(cc, ss)
-            if res == [-1]:
+            set = {}
+            for k in self.stats_setting.keys():
+                ent_s = self.stats_setting[k]
+                if len(ent_s) == 1:
+                    if ent_s[0].get():
+                        set[k] = [-1, ent_s[0].get()]    # 相等比较，-1
+                else:
+                    assert len(ent_s) == 2
+                    if ent_s[0].get() and ent_s[1].get():    # 大于小于同时存在，2
+                        set[k] = [2, [ent_s[0].get(), ent_s[1].get()]]
+                    elif ent_s[0].get() and not ent_s[1].get():    # 只有大于，0
+                        set[k] = [0, ent_s[0].get()]
+                    elif not ent_s[0].get() and ent_s[1].get():    # 只有小于，1
+                        set[k] = [1, ent_s[1].get()]
+            if not set:
                 messagebox.showinfo('提示', '请设置查询条件！')
             else:
+                res = player.searchGame(set)
                 if res:
                     RP = regular_items if self.v.get() == 'regular' else playoff_items
                     result_window = Show_list_results(res, list(RP.keys()))
@@ -152,32 +165,49 @@ class Search_by_plyr(object):
     def loop(self):
         # 背景图片
         bg_img = Image.open('../images/wade&james.jpg')
-        bg_img.putalpha(64)
+        bg_img = bg_img.resize((int(bg_img.size[0] * 0.95), int(bg_img.size[1] * 0.95)))
+        bg_img = cv2.cvtColor(np.asarray(bg_img), cv2.COLOR_RGB2BGR)
+        bg_img = cv2.copyMakeBorder(bg_img, 0, 0, 50, 50, cv2.BORDER_REFLECT_101)
+        bg_img = Image.fromarray(cv2.cvtColor(bg_img, cv2.COLOR_BGR2RGB))
+        bg_img.putalpha(32)    # 透明度
         bg_img = ImageTk.PhotoImage(bg_img)
         Label(self.wd, image=bg_img).place(x=0, y=0, relwidth=1, relheight=1)
         # 控件设置
         plyr = Label(self.wd, text='球员:', font=('SimHei', self.fontsize),
                      width=self.col_w, height=1, anchor='e')
-        plyr_ent = Entry(self.wd, width=15, textvariable=self.plyr_ent_value)
+        plyr_ent = Entry(self.wd, width=20, textvariable=self.plyr_ent_value, font=('SimHei', 15))
+        r1 = Radiobutton(self.wd, text='常规赛', value='regular', command=self.ROPselection,
+                         variable=self.v, width=self.radiobutton_w, height=1)
+        r2 = Radiobutton(self.wd, text='季后赛', value='playoff', command=self.ROPselection,
+                         variable=self.v, width=self.radiobutton_w, height=1)
         search_img = Image.open('../images/kobe_dunk.jpg')
         search_img = ImageTk.PhotoImage(search_img)
-        search_button = Button(self.wd, text='查  询', width=self.col_w*4, height=25, image=search_img,
-                               compound='center', cursor='hand2',
-                               command=self.search)
-        r1 = Radiobutton(self.wd, text='常规赛', value='regular', command=self.selection,
-                         variable=self.v, width=self.radiobutton_w, height=1)
-        r2 = Radiobutton(self.wd, text='季后赛', value='playoff', command=self.selection,
-                         variable=self.v, width=self.radiobutton_w, height=1)
+        search_button = Button(self.wd, text='查  询', width=65, height=30, image=search_img,
+                               compound='center', cursor='hand2', command=self.search, font=('SimHei', 14))
+        notion = Label(self.wd, text='说明:', font=('SimHei', self.fontsize),
+                       width=self.col_w, height=1, anchor='e')
+        help_note = '主客场：0客1主\n' \
+                    '比赛序号：赛季第n场比赛\n' \
+                    '年龄：35-001    赛果：W/L    日期：%s\n' \
+                    '季后赛轮次：E/WC1->第一轮，E/WCS->分区半决赛，\n' \
+                    '            E/WCF->分区决赛，FIN->总决赛' % time.strftime("%Y%m%d")
+        notion_ = Label(self.wd, text=help_note, font=('SimHei', 11),
+                        width=self.col_w * 5, height=7, anchor='w', justify='left')
         # 控件布局
-        plyr.grid(padx=self.padding, pady=self.padding, row=1, column=0)
-        plyr_ent.grid(padx=self.padding, pady=self.padding, row=1, column=1, columnspan=2)
-        r1.grid(padx=self.padding, pady=self.padding, row=1, column=3)
-        r2.grid(padx=self.padding, pady=self.padding, row=1, column=4)
-        search_button.grid(padx=self.padding, pady=self.padding, row=1, column=5)
+        plyr.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=0)
+        plyr_ent.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=1, columnspan=3)
+        r1.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=4)
+        r2.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4)
+        search_button.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=5, columnspan=3)
+        notion.grid(padx=self.paddingx, pady=self.paddingy, row=20, column=0)
+        notion_.grid(padx=self.paddingx, pady=self.paddingy, row=20, rowspan=7, column=1, columnspan=7)
         # wd.attributes("-alpha", 0.8)
+        self.v.set('regular')
+        self.ROPselection()
         self.wd.mainloop()
 
 
 if __name__ == '__main__':
     search_by_player_window = Search_by_plyr()
     search_by_player_window.loop()
+
