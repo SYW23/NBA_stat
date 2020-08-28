@@ -110,9 +110,11 @@ class Player(object):
                                 break
                         else:    # 大于或小于
                             if k in ['年龄', '上场时间']:
-                                y = stats[k][1][:2] + stats[k][1][0][3:]
+                                y = stats[k][1][:2] + stats[k][1][3:]
+                                x = game[RP[k]][:2] + game[RP[k]][3:]
                             else:
                                 y = stats[k][1]
+                                x = game[RP[k]]
                             comp = '<=' if stats[k][0] else '>='
                             if not eval(x + comp + y):
                                 res = 0
@@ -120,6 +122,7 @@ class Player(object):
                 if res:  # 符合条件，添加至结果列表
                     resL.append(game)
         # 求取平均和总和
+        RP = 0 if self.ROP == 'regular' else 1
         if resL:
             tmp = pd.DataFrame(resL, columns=regular_items.keys() if self.ROP == 'regular' else playoff_items.keys())
             # tmp.to_csv('tmp.csv', index=None)
@@ -135,8 +138,12 @@ class Player(object):
                     sumn.append('/')
                 elif i == 4:
                     count = tmp['主客场'].value_counts()
-                    ave.append('%d主/%d客' % (tmp.shape[0] - count.loc['@'], count.loc['@']))
-                    sumn.append('%d主/%d客' % (tmp.shape[0] - count.loc['@'], count.loc['@']))
+                    try:
+                        ave.append('%d主/%d客' % (tmp.shape[0] - count.loc['@'], count.loc['@']))
+                        sumn.append('%d主/%d客' % (tmp.shape[0] - count.loc['@'], count.loc['@']))
+                    except:
+                        ave.append('%d主/%d客' % (tmp.shape[0], 0))
+                        sumn.append('%d主/%d客' % (tmp.shape[0], 0))
                 elif (not RP and i == 6) or (RP and i == 7):
                     w, l, diff = 0, 0, 0
                     for i in tmp['赛果']:
@@ -163,7 +170,7 @@ class Player(object):
                     ss = eval(min + '*60+' + str(int(sec)))
                     ss /= (60 * tmp.shape[0])
                     ss = math.modf(ss)
-                    ave_time = '%d:%02d' % (ss[1], ss[0] * 60)
+                    ave_time = '%d:%02d' % (ss[1], round(ss[0] * 60))
                     ave.append(ave_time)
                     sumn.append(sum_time)
             # 求取数值的平均值
