@@ -4,7 +4,7 @@ from tqdm import tqdm
 from util import getCode, writeToPickle
 import re
 
-for season in range(1997, 2021):
+for season in range(1950, 1997):
     # 赛季
     print('=' * 50)
     print('starting to record season %s_%s' % (str(season-1), str(season)))
@@ -18,7 +18,7 @@ for season in range(1997, 2021):
 
     seasonURL = 'https://www.basketball-reference.com/leagues/NBA_%s_games.html' % str(season)
     seasonGames = getCode(seasonURL, 'UTF-8')
-    months = seasonGames.find_all('div', class_ ='filter')[0].find_all('a')
+    months = seasonGames.find_all('div', class_='filter')[0].find_all('a')
     monthURLs = ['https://www.basketball-reference.com' + x.attrs['href'] for x in months]
     
     regularOrPlayoff = 0

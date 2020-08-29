@@ -89,7 +89,7 @@ class Search_by_plyr(object):
         self.v = StringVar()
         self.v.set(None)
         self.wd = Frame(self.wd_)
-        self.wd.grid(sticky='w')
+        self.wd.grid()
         self.wd_.bind("<Return>", self.search_enter)
         self.grid_posi = {'比赛序号': [15, 0], '日期': [15, 1], '年龄': [16, 0], '主队': [1, 0], '主客场': [1, 1],
                           '对手': [2, 0], '赛果': [2, 1], '是否首发': [3, 0], '轮次': [3, 1], '上场时间': [4, 1],
@@ -167,7 +167,7 @@ class Search_by_plyr(object):
         bg_img = Image.open('../images/wade&james.jpg')
         bg_img = bg_img.resize((int(bg_img.size[0] * 0.95), int(bg_img.size[1] * 0.95)))
         bg_img = cv2.cvtColor(np.asarray(bg_img), cv2.COLOR_RGB2BGR)
-        bg_img = cv2.copyMakeBorder(bg_img, 0, 0, 50, 50, cv2.BORDER_REFLECT_101)
+        bg_img = cv2.copyMakeBorder(bg_img, 0, 0, 100, 100, cv2.BORDER_REFLECT_101)
         bg_img = Image.fromarray(cv2.cvtColor(bg_img, cv2.COLOR_BGR2RGB))
         bg_img.putalpha(32)    # 透明度
         bg_img = ImageTk.PhotoImage(bg_img)
