@@ -4,7 +4,7 @@ from tqdm import tqdm
 from util import getCode, writeToPickle
 import re
 
-for season in range(1950, 1997):
+for season in range(1971, 1997):
     # 赛季
     print('=' * 50)
     print('starting to record season %s_%s' % (str(season-1), str(season)))
@@ -26,7 +26,10 @@ for season in range(1950, 1997):
         # 月份
         print('\tstarting to record month %s' % monthURL.split('-')[2].rstrip('.html'))
         monthPage = getCode(monthURL, 'UTF-8')
-        trs = monthPage.find('table', class_='stats_table').find_all('tr')
+        if monthPage.find('table', class_='stats_table'):
+            trs = monthPage.find('table', class_='stats_table').find_all('tr')
+        else:
+            continue
         
         for tr in tqdm(trs[1:]):
             boxscores = []
@@ -52,6 +55,8 @@ for season in range(1950, 1997):
                     wl = [x[5:-6] for x in re.findall(wl_re, str(scores))]    # 当场比赛结束后球队战绩
                     # if not wl:    # 处理202008150POR特殊情况
                     #     wl = ['34-39', '35-39']
+                    if not wl:
+                        wl = ['', '']
                     boxscores.append(dict({teams[0]: [ss[0], wl[0]],
                                            teams[1]: [ss[1], wl[1]]}))
                     # 球员数据（整场比赛、进阶、分节、上下半场、加时）

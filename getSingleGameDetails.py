@@ -25,8 +25,9 @@ for season in range(2020, 2021):
     
     regularOrPlayoff = 0
     for index, monthURL in enumerate(monthURLs):
+        print(monthURL)
         # 月份
-        print('\tstarting to record month %s' % monthURL.split('-')[2][-5])
+        print('\tstarting to record month %s' % monthURL.split('-')[-1][:-5])
         monthPage = getCode(monthURL, 'UTF-8')
         trs = monthPage.find('table', class_='stats_table').find_all('tr')
         

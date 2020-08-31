@@ -9,6 +9,7 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 import cv2
 import numpy as np
+import pandas as pd
 import time
 from util import LoadPickle
 from klasses.stats_items import regular_items, playoff_items
@@ -19,7 +20,8 @@ class Show_list_results(object):
     def __init__(self, res, columns):
         self.fontsize = 10
         self.col_w = 25
-        self.padding = 10
+        self.paddingx = 10
+        self.paddingy = 10
         self.wd_res = Toplevel()
         self.wd_res.iconbitmap('../images/nbahalfcourt.ico')
         self.wd_res.geometry('1500x800+50+100')
@@ -27,25 +29,50 @@ class Show_list_results(object):
         self.columns = columns
         self.res = res
         self.tree = None
+        self.tree_as = None
 
     def title(self, tt):    # 结果窗口标题
         self.wd_res.title(tt)
+
+    @staticmethod
+    def special_sorting(l, reverse):
+        if 'W' in l[0][0] or 'L' in l[0][0]:
+            ast_sort = np.array([int(x[0][3:-1]) for x in l])
+        else:
+            ast_sort = np.array([int(x[0]) for x in l])
+        out = np.argsort(ast_sort)
+        if reverse:
+            out = out[::-1]
+        return [l[x] for x in out]
 
     def res_note(self, text):    # 结果说明（第一行）
         Label(self.wd_res, text=text, font=('SimHei', self.fontsize), anchor='w',
               width=self.col_w, height=1).place(relx=0.015, rely=0.168, relwidth=0.2, relheight=0.022)
 
+    def sort_column(self, col, reverse):  # Treeview、列名、排列方式
+        l = [[self.tree.set(k, col), k] for k in self.tree.get_children('')]    # 取出所选列中每行的值
+        if l[0][0][0] == '-' or l[0][0][0] == 'L' or '+' in l[0][0]:
+            l = self.special_sorting(l, reverse)    # 特殊排序
+        else:
+            l.sort(reverse=reverse)  # 排序方式
+        for index, [_, k] in enumerate(l):  # 根据排序后索引移动
+            self.tree.move(k, '', index)
+        self.tree.heading(col, command=lambda: self.sort_column(col, not reverse))  # 重写标题，使之成为再点倒序的标题
+
     def tree_generate(self):
+        # 结果罗列表
         # 定义各列列宽及对齐方式
         for i in self.columns:
             if i in ['日期', '赛果', '上场时间']:
                 self.tree.column(i, width=120, anchor='center')
             else:
                 self.tree.column(i, width=100, anchor='center')
-            self.tree.heading(i, text=i)
+            self.tree.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
         # 逐条插入数据
-        for i, r in enumerate(self.res):
+        for i, r in enumerate(self.res[:-2]):
             r[1] = r[1][:8]
+            if isinstance(r[4], float):
+                r[4] = ''
             self.tree.insert('', i, text=str(i), values=tuple(r))
         # 滚动条
         scrollbarx = Scrollbar(self.wd_res, orient='horizontal', command=self.tree.xview)
@@ -53,16 +80,34 @@ class Show_list_results(object):
         scrollbary = Scrollbar(self.wd_res, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbary.set)
         # 布局
-        scrollbarx.place(relx=0.004, rely=0.968, relwidth=0.968, relheight=0.03)
-        scrollbary.place(relx=0.982, rely=0.20, relwidth=0.016, relheight=0.762)
-        self.tree.place(relx=0.004, rely=0.20, relwidth=0.968, relheight=0.762)
+        scrollbarx.place(relx=0.004, rely=0.838, relwidth=0.968, relheight=0.03)
+        scrollbary.place(relx=0.982, rely=0.20, relwidth=0.016, relheight=0.652)
+        self.tree.place(relx=0.004, rely=0.20, relwidth=0.968, relheight=0.652)
+        # 平均&总和表
+        for i in self.columns:
+            if i in ['日期', '赛果', '上场时间']:
+                self.tree_as.column(i, width=120, anchor='center')
+            else:
+                self.tree_as.column(i, width=100, anchor='center')
+            self.tree_as.heading(i, text=i)
+            # 逐条插入数据
+        for i, r in enumerate(self.res[-2:]):
+            r[1] = r[1][:8]
+            self.tree_as.insert('', i, text=str(i), values=tuple(r))
+        # 滚动条
+        scrollbarx_as = Scrollbar(self.wd_res, orient='horizontal', command=self.tree_as.xview)
+        self.tree_as.configure(xscrollcommand=scrollbarx_as.set)
+        # 布局
+        scrollbarx_as.place(relx=0.004, rely=0.968, relwidth=0.968, relheight=0.03)
+        self.tree_as.place(relx=0.004, rely=0.868, relwidth=0.968, relheight=0.128)
 
     def loop(self, text):   # 参数：窗口标题、结果说明文字
         resbg_img = Image.open("../images/kobe_bg.jpg")
         resbg_img.putalpha(64)
         resbg_img = ImageTk.PhotoImage(resbg_img)
-        Label(self.wd_res, image=resbg_img).pack()
+        Label(self.wd_res, image=resbg_img).place(x=0, y=0, relwidth=1, relheight=1)
         self.tree = ttk.Treeview(self.wd_res, columns=self.columns, show='headings')
+        self.tree_as = ttk.Treeview(self.wd_res, columns=self.columns, show='headings')
         self.res_note(text)
         self.tree_generate()
         self.wd_res.mainloop()
@@ -74,7 +119,7 @@ class Search_by_plyr(object):
         self.col_w = 15
         self.radiobutton_w = 5
         self.paddingx = 10
-        self.paddingy = 10
+        self.paddingy = 5
         self.pm2pn = LoadPickle('../data/playermark2playername.pickle')
         self.pn2pm = dict(zip(self.pm2pn.values(), self.pm2pn.keys()))
         self.ROP_dict = {'regular': '常规赛', 'playoff': '季后赛'}
@@ -86,8 +131,8 @@ class Search_by_plyr(object):
         self.stats_setting = {}
         self.plyr_ent_value = StringVar()
         self.plyr_ent_value.set('LeBron James')
-        self.v = StringVar()
-        self.v.set(None)
+        self.ROP = StringVar()
+        self.ROP.set(None)
         self.wd = Frame(self.wd_)
         self.wd.grid()
         self.wd_.bind("<Return>", self.search_enter)
@@ -98,6 +143,10 @@ class Search_by_plyr(object):
                           '罚球出手数': [13, 1], '罚球命中率': [14, 0], '前场篮板': [6, 0], '后场篮板': [6, 1],
                           '篮板': [5, 0], '助攻': [5, 1], '抢断': [7, 0], '盖帽': [7, 1], '失误': [8, 0],
                           '犯规': [8, 1], '得分': [4, 0], '比赛评分': [16, 1], '正负值': [17, 0], '本轮比赛序号': [16, 0]}
+
+    def one_tick_sel(self, text, value, command):
+        return Radiobutton(self.wd, text=text, value=value, command=command,
+                           variable=self.ROP, width=self.radiobutton_w, height=1)
 
     def place_stat(self, text, row, c):
         Label(self.wd, text=text + ':', font=('SimHei', self.fontsize), width=self.col_w, height=1,
@@ -118,7 +167,7 @@ class Search_by_plyr(object):
     def ROPselection(self):
         for i in self.wd.grid_slaves()[:-7]:
             i.grid_remove()
-        ROP = regular_items if self.v.get() == 'regular' else playoff_items
+        ROP = regular_items if self.ROP.get() == 'regular' else playoff_items
         self.stats_setting.clear()
         for i, k in enumerate(ROP.keys()):
             self.place_stat(k, self.grid_posi[k][0] + 2, self.grid_posi[k][1] * 4)
@@ -133,9 +182,9 @@ class Search_by_plyr(object):
             if self.plyr_ent_value.get() not in self.pn2pm.keys():
                 messagebox.showinfo('提示', '球员姓名不存在！')
                 return
-            player = Player(self.pn2pm[self.plyr_ent_value.get()], self.v.get())
+            player = Player(self.pn2pm[self.plyr_ent_value.get()], self.ROP.get())
             set = {}
-            for k in self.stats_setting.keys():
+            for k in self.stats_setting.keys():    # 遍历文本框，选出有输入值的项
                 ent_s = self.stats_setting[k]
                 if len(ent_s) == 1:
                     if ent_s[0].get():
@@ -152,10 +201,11 @@ class Search_by_plyr(object):
                 messagebox.showinfo('提示', '请设置查询条件！')
             else:
                 res = player.searchGame(set)
+                # print(res)
                 if res:
-                    RP = regular_items if self.v.get() == 'regular' else playoff_items
+                    RP = regular_items if self.ROP.get() == 'regular' else playoff_items
                     result_window = Show_list_results(res, list(RP.keys()))
-                    result_window.title('%s %s 查询结果' % (self.plyr_ent_value.get(), self.ROP_dict[self.v.get()]))
+                    result_window.title('%s %s 查询结果' % (self.plyr_ent_value.get(), self.ROP_dict[self.ROP.get()]))
                     result_window.loop(' 共查询到%d条记录' % (len(res) - 2))
                 else:
                     messagebox.showinfo('提示', '未查询到符合条件的数据！')
@@ -176,10 +226,8 @@ class Search_by_plyr(object):
         plyr = Label(self.wd, text='球员:', font=('SimHei', self.fontsize),
                      width=self.col_w, height=1, anchor='e')
         plyr_ent = Entry(self.wd, width=20, textvariable=self.plyr_ent_value, font=('SimHei', 15))
-        r1 = Radiobutton(self.wd, text='常规赛', value='regular', command=self.ROPselection,
-                         variable=self.v, width=self.radiobutton_w, height=1)
-        r2 = Radiobutton(self.wd, text='季后赛', value='playoff', command=self.ROPselection,
-                         variable=self.v, width=self.radiobutton_w, height=1)
+        rglr_sel = self.one_tick_sel('常规赛', 'regular', self.ROPselection)
+        plyf_sel = self.one_tick_sel('季后赛', 'playoff', self.ROPselection)
         search_img = Image.open('../images/kobe_dunk.jpg')
         search_img = ImageTk.PhotoImage(search_img)
         search_button = Button(self.wd, text='查  询', width=65, height=30, image=search_img,
@@ -196,13 +244,13 @@ class Search_by_plyr(object):
         # 控件布局
         plyr.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=0)
         plyr_ent.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=1, columnspan=3)
-        r1.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=4)
-        r2.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4)
+        rglr_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=4)
+        plyf_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4)
         search_button.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=5, columnspan=3)
         notion.grid(padx=self.paddingx, pady=self.paddingy, row=20, column=0)
-        notion_.grid(padx=self.paddingx, pady=self.paddingy, row=20, rowspan=7, column=1, columnspan=7)
+        notion_.grid(padx=self.paddingx, pady=self.paddingy, row=20, rowspan=6, column=1, columnspan=7)
         # wd.attributes("-alpha", 0.8)
-        self.v.set('regular')
+        self.ROP.set('regular')
         self.ROPselection()
         self.wd.mainloop()
 
