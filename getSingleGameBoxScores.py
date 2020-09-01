@@ -4,7 +4,7 @@ from tqdm import tqdm
 from util import getCode, writeToPickle
 import re
 
-for season in range(1971, 1997):
+for season in range(2020, 2021):
     # 赛季
     print('=' * 50)
     print('starting to record season %s_%s' % (str(season-1), str(season)))

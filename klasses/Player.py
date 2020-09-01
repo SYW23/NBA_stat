@@ -3,6 +3,7 @@ import sys
 sys.path.append('../')
 import pandas as pd
 from klasses.stats_items import regular_items, playoff_items
+from klasses.miscellaneous import MPTime, WinLoseCounter
 import numpy as np
 import math
 from util import addMinutes
@@ -122,92 +123,61 @@ class Player(object):
                 if res:  # 符合条件，添加至结果列表
                     resL.append(game)
         # 求取平均和总和
-        RP = 0 if self.ROP == 'regular' else 1
         if resL:
             tmp = pd.DataFrame(resL, columns=regular_items.keys() if self.ROP == 'regular' else playoff_items.keys())
             # tmp.to_csv('tmp.csv', index=None)
             ave = []
             sumn = []
-            for i in range(tmp.shape[1]):
+            for k in tmp.columns:
                 # 几项特殊的均值/总和计算方式
-                if i == 0:
-                    ave.append('平均')
-                    sumn.append('总和')
-                elif (not RP and i in [1, 2, 3, 5]) or (RP and i in [1, 2, 3, 5, 6]):
+                if k == '比赛序号':    # 首列
+                    ave.append('%d场平均' % tmp.shape[0])
+                    sumn.append('%d场总和' % tmp.shape[0])
+                elif k in ['日期', '年龄', '主队', '对手', '轮次', '本轮比赛序号']:
                     ave.append('/')
                     sumn.append('/')
-                elif i == 4:
-                    count = tmp['主客场'].value_counts()
+                elif k == '主客场':    # 统计主客场数量
+                    count = tmp[k].value_counts()
                     try:
                         ave.append('%d主/%d客' % (tmp.shape[0] - count.loc['@'], count.loc['@']))
                         sumn.append('%d主/%d客' % (tmp.shape[0] - count.loc['@'], count.loc['@']))
                     except:
                         ave.append('%d主/%d客' % (tmp.shape[0], 0))
                         sumn.append('%d主/%d客' % (tmp.shape[0], 0))
-                elif (not RP and i == 6) or (RP and i == 7):
-                    w, l, diff = 0, 0, 0
-                    for i in tmp['赛果']:
-                        diff += float(i[3:-1])
-                        if 'W' in i:
-                            w += 1
-                        else:
-                            l += 1
-                    diff_ave = diff / tmp.shape[0]
-                    diff_ave = '+' + '%.1f' % diff_ave if diff_ave > 0 else '%.1f' % diff_ave
-                    diff = '+' + '%d' % diff if diff > 0 else '%d' % diff
-                    ave.append('%d/%d (%s)' % (w, l, diff_ave))
-                    sumn.append('%d/%d (%s)' % (w, l, diff))
-                elif (not RP and i == 7) or (RP and i == 8):
-                    count = tmp['是否首发'].value_counts()
+                elif k == '赛果':    # 统计几胜几负
+                    origin = WinLoseCounter(False)
+                    for i in tmp[k]:
+                        origin += WinLoseCounter(True, strwl=i)
+                    print(origin.average())
+                    ave.append(origin.average())
+                    sumn.append(origin)
+                elif k == '是否首发':    # 统计首发次数
+                    count = tmp[k].value_counts()
                     ave.append('%d/%d' % (count.loc['1'], tmp.shape[0]))
                     sumn.append('%d/%d' % (count.loc['1'], tmp.shape[0]))
-                elif (not RP and i == 8) or (RP and i == 9):
-                    sum_time = '0:00.0'
-                    for i in tmp['上场时间']:
-                        sum_time = addMinutes(sum_time, i + '.0')
-                    sum_time = sum_time[:-2]
-                    [min, sec] = sum_time.split(':')
-                    ss = eval(min + '*60+' + str(int(sec)))
-                    ss /= (60 * tmp.shape[0])
-                    ss = math.modf(ss)
-                    ave_time = '%d:%02d' % (ss[1], round(ss[0] * 60))
-                    ave.append(ave_time)
-                    sumn.append(sum_time)
-            # 求取数值的平均值
-            ind = 9 if not RP else 10
-            num_ave = tmp.iloc[:, ind:].astype('float').mean(axis=0)
-            num_sum = tmp.iloc[:, ind:].astype('float').sum(axis=0)
-            # 命中率无均值概念，单独计算
-            for i in [2, 5, 8]:
-                num_ave[i] = num_ave[i - 2] / num_ave[i - 1] if num_ave[i - 1] else np.nan
-                num_sum[i] = num_ave[i]
-            num_ave = pd.DataFrame(num_ave.values[:, np.newaxis].T)
-            num_sum = pd.DataFrame(num_sum.values[:, np.newaxis].T)
-            # 小数位数调整
-            num_ave = num_ave.round({0: 1, 1: 1, 2: 3, 3: 1, 4: 1, 5: 3, 6: 1, 7: 1, 8: 3, 9: 1,
-                                     10: 1, 11: 1, 12: 1, 13: 1, 14: 1, 15: 1, 16: 1, 17: 1, 18: 1, 19: 1})
-            num_sum = num_sum.round({0: 0, 1: 0, 2: 3, 3: 0, 4: 0, 5: 3, 6: 0, 7: 0, 8: 3, 9: 0,
-                                     10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0, 16: 0, 17: 0, 18: 1, 19: 0})
-            num_ave = list(num_ave.values[0])
-            num_sum = list(num_sum.values[0])
-            # 命中率显示保持一致（整数去掉.0，小数去掉前面的0）
-            for i in range(len(num_sum)):
-                if i not in [2, 5, 8, 18]:
-                    num_sum[i] = int(num_sum[i])
-                elif i != 18:
-                    if num_sum[i] < 1:
-                        num_sum[i] = str(num_sum[i])[1:]
-                        num_sum[i] += '0' * (4 - len(num_sum[i]))
-                        num_ave[i] = str(num_ave[i])[1:]
-                        num_ave[i] += '0' * (4 - len(num_ave[i]))
-                    else:
-                        num_sum[i] = '1.000'
-            # 正负值为正咋加上+号，为保持一致
-            num_ave[-1] = '+' + str(num_ave[-1]) if num_ave[-1] > 0 else num_ave[-1]
-            num_sum[-1] = '+' + str(num_sum[-1]) if num_sum[-1] > 0 else num_sum[-1]
-            ave += num_ave
-            sumn += num_sum
+                elif k == '上场时间':    # 时间加和与平均
+                    sum_time = MPTime('0:00.0', reverse=False)
+                    for i in tmp[k]:
+                        sum_time += MPTime(i, reverse=False)
+                    ave.append(sum_time.average(tmp.shape[0]))
+                    sumn.append(sum_time.strtime[:-2])
+                elif '命中率' in k:    # 命中率单独计算
+                    p = '%.3f' % (sumn[-2] / sumn[-1])
+                    if p != '1.000':
+                        p = p[1:]
+                    ave.append(p)
+                    sumn.append(p)
+                else:
+                    a = '%.1f' % tmp[k].astype('float').mean()
+                    s = '%.1f' % tmp[k].astype('float').sum() if k == '比赛评分'\
+                        else int(tmp[k].astype('int').sum())    # 比赛评分精确小数点后一位
+                    if k == '正负值':    # 正负值加+号
+                        if s != 0 and a[0] != '-':
+                            a = '+' + a
+                        if s > 0:
+                            s = '+%d' % s
+                    ave.append(a)
+                    sumn.append(s)
             resL.append(ave)
             resL.append(sumn)
-
         return resL

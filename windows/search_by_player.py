@@ -165,14 +165,14 @@ class Search_by_plyr(object):
             self.stats_setting[text] = [ent]
 
     def ROPselection(self):
-        for i in self.wd.grid_slaves()[:-7]:
+        print(self.wd.grid_slaves())
+        for i in self.wd.grid_slaves()[:-9]:
             i.grid_remove()
         ROP = regular_items if self.ROP.get() == 'regular' else playoff_items
         self.stats_setting.clear()
         for i, k in enumerate(ROP.keys()):
             self.place_stat(k, self.grid_posi[k][0] + 2, self.grid_posi[k][1] * 4)
         self.place_stat('比赛分差', 19, 4)
-        # print(self.stats_setting)
 
     def search_enter(self, event):    # 绑定回车键触发搜索函数
         self.search()
@@ -240,7 +240,10 @@ class Search_by_plyr(object):
                     '季后赛轮次：E/WC1->第一轮，E/WCS->分区半决赛，\n' \
                     '            E/WCF->分区决赛，FIN->总决赛' % time.strftime("%Y%m%d")
         notion_ = Label(self.wd, text=help_note, font=('SimHei', 11),
-                        width=self.col_w * 5, height=7, anchor='w', justify='left')
+                        width=self.col_w * 5, height=6, anchor='w', justify='left')
+        sep = ttk.Separator(self.wd, orient='horizontal')  # 分割线
+        test = Label(self.wd, text='test:', font=('SimHei', self.fontsize),
+                     width=self.col_w, height=1, anchor='e')
         # 控件布局
         plyr.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=0)
         plyr_ent.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=1, columnspan=3)
@@ -249,6 +252,8 @@ class Search_by_plyr(object):
         search_button.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=5, columnspan=3)
         notion.grid(padx=self.paddingx, pady=self.paddingy, row=20, column=0)
         notion_.grid(padx=self.paddingx, pady=self.paddingy, row=20, rowspan=6, column=1, columnspan=7)
+        sep.grid(row=26, column=0, columnspan=8, sticky='ew')
+        test.grid(padx=self.paddingx, pady=self.paddingy, row=27, column=0)
         # wd.attributes("-alpha", 0.8)
         self.ROP.set('regular')
         self.ROPselection()
