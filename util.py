@@ -18,10 +18,10 @@ def writeToExcel(file, colNames, content):
     if colNames:
         output.write(colNames)
     for i in range(len(content)):
-    	for j in range(len(content[i])):
-    		output.write(str(content[i][j]))
-    		output.write('\t')
-    	output.write('\n')
+        for j in range(len(content[i])):
+            output.write(str(content[i][j]))
+            output.write('\t')
+        output.write('\n')
     output.close()
 
 

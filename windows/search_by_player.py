@@ -16,8 +16,78 @@ from klasses.stats_items import regular_items, playoff_items
 from klasses.Player import Player
 
 
+class Show_single_game(object):
+    def __init__(self, game):
+        self.fontsize = 10
+        self.col_w = 8
+        self.bt_h = 2
+        self.bt_w = 10
+        self.paddingx = 5
+        self.paddingy = 10
+        [self.hometeam, self.roadteam] = [x for x in game[0].keys()]
+        self.res = game[0]
+        self.tbs = game[1:]
+        self.wd_gm = Toplevel()
+        self.wd_gm.iconbitmap('../images/nbahalfcourt.ico')
+        self.wd_gm.geometry('+50+100')
+
+    def span(self):
+        pass
+
+    def loop(self):
+        gmbg_img = Image.open("../images/james.jpg")
+        gmbg_img.putalpha(64)
+        gmbg_img = ImageTk.PhotoImage(gmbg_img)
+        Label(self.wd_gm, image=gmbg_img).place(x=0, y=0, relwidth=1, relheight=1)
+        # 控件设置
+        rt = Label(self.wd_gm, text=self.hometeam, font=('SimHei', self.fontsize * 2),
+                   width=self.col_w, height=1, anchor='center')
+        ht = Label(self.wd_gm, text=self.roadteam, font=('SimHei', self.fontsize * 2),
+                   width=self.col_w, height=1, anchor='center')
+        rt_sr = Label(self.wd_gm, text=self.res[self.hometeam][0], font=('SimHei', self.fontsize * 2),
+                      width=self.col_w, height=1, anchor='center')
+        ht_sr = Label(self.wd_gm, text=self.res[self.roadteam][0], font=('SimHei', self.fontsize * 2),
+                      width=self.col_w, height=1, anchor='center')
+        to = Label(self.wd_gm, text='vs', font=('SimHei', self.fontsize),
+                   width=self.col_w//5, height=1, anchor='center')
+        rt_wl = Label(self.wd_gm, text='(%s)' % self.res[self.hometeam][1], font=('SimHei', self.fontsize),
+                      width=self.col_w, height=1, anchor='center')
+        ht_wl = Label(self.wd_gm, text='(%s)' % self.res[self.roadteam][1], font=('SimHei', self.fontsize),
+                      width=self.col_w, height=1, anchor='center')
+        whole_button = Button(self.wd_gm, text='全场', width=self.bt_w, height=self.bt_h, compound='center',
+                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
+        first_button = Button(self.wd_gm, text='第一节', width=self.bt_w, height=self.bt_h, compound='center',
+                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
+        secnd_button = Button(self.wd_gm, text='第二节', width=self.bt_w, height=self.bt_h, compound='center',
+                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
+        fsthf_button = Button(self.wd_gm, text='上半场', width=self.bt_w, height=self.bt_h, compound='center',
+                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
+        third_button = Button(self.wd_gm, text='第三节', width=self.bt_w, height=self.bt_h, compound='center',
+                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
+        forth_button = Button(self.wd_gm, text='第四节', width=self.bt_w, height=self.bt_h, compound='center',
+                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
+        sndhf_button = Button(self.wd_gm, text='下半场', width=self.bt_w, height=self.bt_h, compound='center',
+                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
+        # 控件布局
+        rt.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=0)
+        rt_sr.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=1)
+        to.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=2)
+        ht_sr.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=3)
+        ht.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=4)
+        rt_wl.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=0)
+        ht_wl.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4)
+        whole_button.grid(padx=self.paddingx, pady=self.paddingy, row=3, rowspan=2, column=0)
+        first_button.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=1)
+        secnd_button.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=2)
+        fsthf_button.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=3)
+        third_button.grid(padx=self.paddingx, pady=self.paddingy, row=4, column=1)
+        forth_button.grid(padx=self.paddingx, pady=self.paddingy, row=4, column=2)
+        sndhf_button.grid(padx=self.paddingx, pady=self.paddingy, row=4, column=3)
+        self.wd_gm.mainloop()
+
+
 class Show_list_results(object):
-    def __init__(self, res, columns):
+    def __init__(self, res, columns, RP):
         self.fontsize = 10
         self.col_w = 25
         self.paddingx = 10
@@ -28,11 +98,17 @@ class Show_list_results(object):
         # self.wd_res.resizable(width=True, height=True)
         self.columns = columns
         self.res = res
+        self.RP = 0 if RP == 'regular' else 1
         self.tree = None
         self.tree_as = None
+        self.dates = [x[1] for x in res]
 
-    def title(self, tt):    # 结果窗口标题
+    def title(self, tt):  # 结果窗口标题
         self.wd_res.title(tt)
+
+    def res_note(self, text):  # 结果说明（第一行）
+        Label(self.wd_res, text=text, font=('SimHei', self.fontsize), anchor='w',
+              width=self.col_w, height=1).place(relx=0.015, rely=0.168, relwidth=0.2, relheight=0.022)
 
     @staticmethod
     def special_sorting(l, reverse):
@@ -45,19 +121,24 @@ class Show_list_results(object):
             out = out[::-1]
         return [l[x] for x in out]
 
-    def res_note(self, text):    # 结果说明（第一行）
-        Label(self.wd_res, text=text, font=('SimHei', self.fontsize), anchor='w',
-              width=self.col_w, height=1).place(relx=0.015, rely=0.168, relwidth=0.2, relheight=0.022)
-
-    def sort_column(self, col, reverse):  # Treeview、列名、排列方式
-        l = [[self.tree.set(k, col), k] for k in self.tree.get_children('')]    # 取出所选列中每行的值
+    def sort_column(self, col, reverse):  # 点击列名排列
+        l = [[self.tree.set(k, col), k] for k in self.tree.get_children('')]  # 取出所选列中每行的值
         if l[0][0][0] == '-' or l[0][0][0] == 'L' or '+' in l[0][0]:
-            l = self.special_sorting(l, reverse)    # 特殊排序
+            l = self.special_sorting(l, reverse)  # 特殊排序
         else:
             l.sort(reverse=reverse)  # 排序方式
-        for index, [_, k] in enumerate(l):  # 根据排序后索引移动
+        for index, [_, k] in enumerate(l):  # 根据排序后的索引移动
             self.tree.move(k, '', index)
         self.tree.heading(col, command=lambda: self.sort_column(col, not reverse))  # 重写标题，使之成为再点倒序的标题
+
+    def double(self, event):
+        gm = self.dates[int(self.tree.selection()[0][1:], 16) - 1]
+        month = int(gm[4:6])
+        season = int(gm[:4]) - 1 if month < 9 else int(gm[:4])
+        game = LoadPickle('../data/seasons_boxscores/%d_%d/%s/%s_boxscores.pickle' %
+                          (season, season + 1, 'playoffs' if self.RP else 'regular', gm))
+        game_win = Show_single_game(game)
+        game_win.loop()
 
     def tree_generate(self):
         # 结果罗列表
@@ -90,7 +171,7 @@ class Show_list_results(object):
             else:
                 self.tree_as.column(i, width=100, anchor='center')
             self.tree_as.heading(i, text=i)
-            # 逐条插入数据
+        # 逐条插入数据
         for i, r in enumerate(self.res[-2:]):
             r[1] = r[1][:8]
             self.tree_as.insert('', i, text=str(i), values=tuple(r))
@@ -101,7 +182,7 @@ class Show_list_results(object):
         scrollbarx_as.place(relx=0.004, rely=0.968, relwidth=0.968, relheight=0.03)
         self.tree_as.place(relx=0.004, rely=0.868, relwidth=0.968, relheight=0.128)
 
-    def loop(self, text):   # 参数：窗口标题、结果说明文字
+    def loop(self, text):  # 参数：结果说明文字
         resbg_img = Image.open("../images/kobe_bg.jpg")
         resbg_img.putalpha(64)
         resbg_img = ImageTk.PhotoImage(resbg_img)
@@ -110,6 +191,7 @@ class Show_list_results(object):
         self.tree_as = ttk.Treeview(self.wd_res, columns=self.columns, show='headings')
         self.res_note(text)
         self.tree_generate()
+        self.tree.bind('<Double-Button-1>', self.double)
         self.wd_res.mainloop()
 
 
@@ -155,17 +237,17 @@ class Search_by_plyr(object):
             ent1 = Entry(self.wd, width=10)
             ent2 = Entry(self.wd, width=10)
             Label(self.wd, text='-', font=('SimHei', self.fontsize), width=self.col_w // 3, height=1,
-                  anchor='center').grid(padx=self.paddingx//2, pady=self.paddingy, row=row, column=c + 2)
-            ent1.grid(row=row, column=c + 1, padx=self.paddingx//2, pady=self.paddingy)
-            ent2.grid(row=row, column=c + 3, padx=self.paddingx//2, pady=self.paddingy)
+                  anchor='center').grid(padx=self.paddingx // 2, pady=self.paddingy, row=row, column=c + 2)
+            ent1.grid(row=row, column=c + 1, padx=self.paddingx // 2, pady=self.paddingy)
+            ent2.grid(row=row, column=c + 3, padx=self.paddingx // 2, pady=self.paddingy)
             self.stats_setting[text] = [ent1, ent2]
         else:
             ent = Entry(self.wd, width=20)
-            ent.grid(row=row, column=c + 1, columnspan=3, padx=self.paddingx//2, pady=self.paddingy)
+            ent.grid(row=row, column=c + 1, columnspan=3, padx=self.paddingx // 2, pady=self.paddingy)
             self.stats_setting[text] = [ent]
 
     def ROPselection(self):
-        print(self.wd.grid_slaves())
+        # print(self.wd.grid_slaves())
         for i in self.wd.grid_slaves()[:-9]:
             i.grid_remove()
         ROP = regular_items if self.ROP.get() == 'regular' else playoff_items
@@ -174,28 +256,28 @@ class Search_by_plyr(object):
             self.place_stat(k, self.grid_posi[k][0] + 2, self.grid_posi[k][1] * 4)
         self.place_stat('比赛分差', 19, 4)
 
-    def search_enter(self, event):    # 绑定回车键触发搜索函数
+    def search_enter(self, event):  # 绑定回车键触发搜索函数
         self.search()
 
-    def search(self):    # 点击按钮触发搜索函数
+    def search(self):  # 点击按钮触发搜索函数
         if self.stats_setting:
             if self.plyr_ent_value.get() not in self.pn2pm.keys():
                 messagebox.showinfo('提示', '球员姓名不存在！')
                 return
             player = Player(self.pn2pm[self.plyr_ent_value.get()], self.ROP.get())
             set = {}
-            for k in self.stats_setting.keys():    # 遍历文本框，选出有输入值的项
+            for k in self.stats_setting.keys():  # 遍历文本框，选出有输入值的项
                 ent_s = self.stats_setting[k]
                 if len(ent_s) == 1:
                     if ent_s[0].get():
-                        set[k] = [-1, ent_s[0].get()]    # 相等比较，-1
+                        set[k] = [-1, ent_s[0].get()]  # 相等比较，-1
                 else:
                     assert len(ent_s) == 2
-                    if ent_s[0].get() and ent_s[1].get():    # 大于小于同时存在，2
+                    if ent_s[0].get() and ent_s[1].get():  # 大于小于同时存在，2
                         set[k] = [2, [ent_s[0].get(), ent_s[1].get()]]
-                    elif ent_s[0].get() and not ent_s[1].get():    # 只有大于，0
+                    elif ent_s[0].get() and not ent_s[1].get():  # 只有大于，0
                         set[k] = [0, ent_s[0].get()]
-                    elif not ent_s[0].get() and ent_s[1].get():    # 只有小于，1
+                    elif not ent_s[0].get() and ent_s[1].get():  # 只有小于，1
                         set[k] = [1, ent_s[1].get()]
             if not set:
                 messagebox.showinfo('提示', '请设置查询条件！')
@@ -204,7 +286,7 @@ class Search_by_plyr(object):
                 # print(res)
                 if res:
                     RP = regular_items if self.ROP.get() == 'regular' else playoff_items
-                    result_window = Show_list_results(res, list(RP.keys()))
+                    result_window = Show_list_results(res, list(RP.keys()), self.ROP.get())
                     result_window.title('%s %s 查询结果' % (self.plyr_ent_value.get(), self.ROP_dict[self.ROP.get()]))
                     result_window.loop(' 共查询到%d条记录' % (len(res) - 2))
                 else:
@@ -219,7 +301,7 @@ class Search_by_plyr(object):
         bg_img = cv2.cvtColor(np.asarray(bg_img), cv2.COLOR_RGB2BGR)
         bg_img = cv2.copyMakeBorder(bg_img, 0, 0, 100, 100, cv2.BORDER_REFLECT_101)
         bg_img = Image.fromarray(cv2.cvtColor(bg_img, cv2.COLOR_BGR2RGB))
-        bg_img.putalpha(32)    # 透明度
+        bg_img.putalpha(32)  # 透明度
         bg_img = ImageTk.PhotoImage(bg_img)
         Label(self.wd, image=bg_img).place(x=0, y=0, relwidth=1, relheight=1)
         # 控件设置
@@ -263,4 +345,3 @@ class Search_by_plyr(object):
 if __name__ == '__main__':
     search_by_player_window = Search_by_plyr()
     search_by_player_window.loop()
-

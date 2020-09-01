@@ -37,8 +37,8 @@ class Search_by_game(object):
         self.wd.grid()
         self.wd_.bind("<Return>", self.search_enter)
 
-    def one_tick_sel(self, text, value, command):
-        return Radiobutton(self.wd, text=text, value=value, command=command,
+    def one_tick_sel(self, text, value, command, win):
+        return Radiobutton(win, text=text, value=value, command=command,
                            variable=self.ROP, width=self.radiobutton_w, height=1)
 
     def search_enter(self, event):    # 绑定回车键触发搜索函数
@@ -71,10 +71,12 @@ class Search_by_game(object):
         season_sel = ttk.Combobox(self.wd, width=9, textvariable=season)
         season_sel['value'] = ['%d-%d' % (x, x + 1) for x in range(1996, 2020)]
         season_sel.current(len(season_sel['value']) - 1)
-        sglssn_sel = self.one_tick_sel('单赛季', 'single_season', self.timespan)
-        tilnow_sel = self.one_tick_sel('至今', 'tillnow', self.timespan)
-        rglr_sel = self.one_tick_sel('常规赛', 'regular', self.ROPselection)
-        plyf_sel = self.one_tick_sel('季后赛', 'playoff', self.ROPselection)
+        timespan_frame = LabelFrame(self.wd, text='时间跨度', labelanchor="nw")
+        sglssn_sel = self.one_tick_sel('单赛季', 'single_season', self.timespan, timespan_frame)
+        tilnow_sel = self.one_tick_sel('至今', 'tillnow', self.timespan, timespan_frame)
+        rf_frame = LabelFrame(self.wd, text='比赛类型', labelanchor="nw")
+        rglr_sel = self.one_tick_sel('常规赛', 'regular', self.ROPselection, rf_frame)
+        plyf_sel = self.one_tick_sel('季后赛', 'playoff', self.ROPselection, rf_frame)
         search_img = Image.open('../images/kobe_dunk.jpg')
         search_img = ImageTk.PhotoImage(search_img)
         search_button = Button(self.wd, text='查  询', width=65, height=30, image=search_img,
@@ -85,22 +87,24 @@ class Search_by_game(object):
                                width=self.col_w, height=1, anchor='e')
         team_ent = Entry(self.wd, width=10)
         opntteam_ent = Entry(self.wd, width=10)
-        whole_sel = self.one_tick_sel('全场', 'whole', self.QTRselection)
-        first_sel = self.one_tick_sel('第一节', '1st', self.QTRselection)
-        secnd_sel = self.one_tick_sel('第二节', '2nd', self.QTRselection)
-        fsthf_sel = self.one_tick_sel('上半场', '1hf', self.QTRselection)
-        third_sel = self.one_tick_sel('第三节', '3rd', self.QTRselection)
-        forth_sel = self.one_tick_sel('第四节', '4th', self.QTRselection)
-        sndhf_sel = self.one_tick_sel('下半场', '2hf', self.QTRselection)
+        whole_sel = self.one_tick_sel('全场', 'whole', self.QTRselection, self.wd)
+        first_sel = self.one_tick_sel('第一节', '1st', self.QTRselection, self.wd)
+        secnd_sel = self.one_tick_sel('第二节', '2nd', self.QTRselection, self.wd)
+        fsthf_sel = self.one_tick_sel('上半场', '1hf', self.QTRselection, self.wd)
+        third_sel = self.one_tick_sel('第三节', '3rd', self.QTRselection, self.wd)
+        forth_sel = self.one_tick_sel('第四节', '4th', self.QTRselection, self.wd)
+        sndhf_sel = self.one_tick_sel('下半场', '2hf', self.QTRselection, self.wd)
 
         # 控件布局
         season_label.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=0)
         season_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=1)
-        sglssn_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=2)
-        tilnow_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=3)
-        rglr_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=4)
-        plyf_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4)
-        search_button.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=5, columnspan=2)
+        timespan_frame.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=2)
+        sglssn_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=0)
+        tilnow_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=0)
+        rf_frame.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=3)
+        rglr_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=0)
+        plyf_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=0)
+        search_button.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=4, columnspan=2)
         team_label.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=0)
         opntteam_label.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=2)
         team_ent.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=1)

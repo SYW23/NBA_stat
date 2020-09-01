@@ -71,7 +71,7 @@ class Player(object):
         return np.sum(self._get_item(item).astype(np.float64))
 
     def searchGame(self, stats):
-        print(stats)
+        # print(stats)
         # 单场比赛数据查询
         RP = regular_items if self.ROP == 'regular' else playoff_items
         resL = []
@@ -148,7 +148,6 @@ class Player(object):
                     origin = WinLoseCounter(False)
                     for i in tmp[k]:
                         origin += WinLoseCounter(True, strwl=i)
-                    print(origin.average())
                     ave.append(origin.average())
                     sumn.append(origin)
                 elif k == '是否首发':    # 统计首发次数
