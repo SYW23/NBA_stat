@@ -122,6 +122,7 @@ class Player(object):
                                 break
                 if res:  # 符合条件，添加至结果列表
                     resL.append(game)
+        print(resL)
         # 求取平均和总和
         if resL:
             tmp = pd.DataFrame(resL, columns=regular_items.keys() if self.ROP == 'regular' else playoff_items.keys())
@@ -167,9 +168,10 @@ class Player(object):
                     ave.append(p)
                     sumn.append(p)
                 else:
-                    a = '%.1f' % tmp[k].astype('float').mean()
-                    s = '%.1f' % tmp[k].astype('float').sum() if k == '比赛评分'\
-                        else int(tmp[k].astype('int').sum())    # 比赛评分精确小数点后一位
+                    tmp_sg = tmp[k][tmp[k].notna()]
+                    a = '%.1f' % tmp_sg.astype('float').mean()
+                    s = '%.1f' % tmp_sg.astype('float').sum() if k == '比赛评分'\
+                        else int(tmp_sg.astype('int').sum())    # 比赛评分精确小数点后一位
                     if k == '正负值':    # 正负值加+号
                         if s != 0 and a[0] != '-':
                             a = '+' + a

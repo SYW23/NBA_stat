@@ -9,6 +9,7 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 import cv2
 import numpy as np
+import math
 import pandas as pd
 import time
 from util import LoadPickle
@@ -17,57 +18,99 @@ from klasses.Player import Player
 
 
 class Show_single_game(object):
-    def __init__(self, game):
+    def __init__(self, gm, ROP):
         self.fontsize = 10
         self.col_w = 8
         self.bt_h = 2
         self.bt_w = 10
         self.paddingx = 5
-        self.paddingy = 10
+        self.paddingy = 5
+        self.ROP = ROP
+        self.gm = gm
+        self.month = int(gm[4:6])
+        self.season = int(gm[:4]) - 1 if self.month < 9 else int(gm[:4])
+        game = LoadPickle('../data/seasons_boxscores/%d_%d/%s/%s_boxscores.pickle' %
+                          (self.season, self.season + 1, 'playoffs' if ROP else 'regular', gm))
         [self.hometeam, self.roadteam] = [x for x in game[0].keys()]
         self.res = game[0]
         self.tbs = game[1:]
+        self.columns = None
         self.wd_gm = Toplevel()
         self.wd_gm.iconbitmap('../images/nbahalfcourt.ico')
-        self.wd_gm.geometry('+50+100')
+        self.wd_gm.geometry('+250+100')
+        self.frame_btn = None
+        self.trees = []    # 存放主客队各一个数据表格
+        self.ts = 0
+        self.pm2pn = LoadPickle('../data/playermark2playername.pickle')
 
-    def span(self):
-        pass
+    def button(self, text, n):
+        return Button(self.frame_btn, text=text, width=self.bt_w, height=self.bt_h, compound='center',
+                      cursor='hand2', command=lambda: self.span(n), font=('SimHei', self.fontsize))
+
+    def label(self, text, fontsize):
+        return Label(self.wd_gm, text=text, font=('SimHei', fontsize), width=self.col_w, height=1, anchor='center')
+
+    def insert_tree(self, ll, tr):
+        for i, r in enumerate(ll):
+            tmp = r * 1
+            if r[0] != 'Team Totals':
+                tmp[0] = self.pm2pn[tmp[0]]
+            tr.insert('', i, values=tuple(tmp)) if len(r) > 2 else tr.insert('', i, values=tuple(tmp[:1]))
+
+    def tree_generate(self):
+        self.columns = self.tbs[0][0][0]
+        for ind, tr in enumerate(self.trees):
+            for i in self.tbs[self.ts][ind][0]:
+                tr.column(i, width=150, anchor='center') if i == 'players' else tr.column(i, width=60, anchor='center')
+                tr.heading(i, text=i)
+            self.insert_tree(self.tbs[self.ts][ind][1:], tr)    # 逐条插入数据
+        for ind, i in enumerate(self.trees):    # 滚动条与布局
+            scrollbary = Scrollbar(self.wd_gm, orient='vertical', command=i.yview)
+            i.configure(yscrollcommand=scrollbary.set)
+            i.grid(padx=self.paddingx, pady=self.paddingy, row=ind * 2 + 5, column=0, columnspan=5)
+            scrollbary.grid(padx=self.paddingx, pady=self.paddingy, row=ind * 2 + 5, column=5, sticky='ns')
+
+    def span(self, n):
+        if self.ts != n:
+            # 删除原表中数据
+            for i in self.trees:
+                items = i.get_children()
+                [i.delete(item) for item in items]
+            # 更改表头
+            if n == 1 or self.ts == 1:
+                for ind, tr in enumerate(self.trees):
+                    for ind_c, i in enumerate(self.tbs[n][ind][0]):
+                        tr.heading(self.columns[ind_c], text=i)
+                    if n == 1:
+                        for j in range(ind_c + 1, len(self.columns)):    # advanced表“删除”多余的四列
+                            tr.heading(self.columns[j], text='')
+            # 重新插入数据
+            for ind, tr in enumerate(self.trees):
+                if n > 1:    # 总计行
+                    self.insert_tree(self.tbs[0][ind][-1:], tr)
+                self.insert_tree(self.tbs[n][ind][1:], tr)
+            self.ts = n
 
     def loop(self):
         gmbg_img = Image.open("../images/james.jpg")
         gmbg_img.putalpha(64)
         gmbg_img = ImageTk.PhotoImage(gmbg_img)
         Label(self.wd_gm, image=gmbg_img).place(x=0, y=0, relwidth=1, relheight=1)
+        self.frame_btn = Frame(self.wd_gm)
+        self.frame_btn.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=0, columnspan=5)
         # 控件设置
-        rt = Label(self.wd_gm, text=self.hometeam, font=('SimHei', self.fontsize * 2),
-                   width=self.col_w, height=1, anchor='center')
-        ht = Label(self.wd_gm, text=self.roadteam, font=('SimHei', self.fontsize * 2),
-                   width=self.col_w, height=1, anchor='center')
-        rt_sr = Label(self.wd_gm, text=self.res[self.hometeam][0], font=('SimHei', self.fontsize * 2),
-                      width=self.col_w, height=1, anchor='center')
-        ht_sr = Label(self.wd_gm, text=self.res[self.roadteam][0], font=('SimHei', self.fontsize * 2),
-                      width=self.col_w, height=1, anchor='center')
-        to = Label(self.wd_gm, text='vs', font=('SimHei', self.fontsize),
-                   width=self.col_w//5, height=1, anchor='center')
-        rt_wl = Label(self.wd_gm, text='(%s)' % self.res[self.hometeam][1], font=('SimHei', self.fontsize),
-                      width=self.col_w, height=1, anchor='center')
-        ht_wl = Label(self.wd_gm, text='(%s)' % self.res[self.roadteam][1], font=('SimHei', self.fontsize),
-                      width=self.col_w, height=1, anchor='center')
-        whole_button = Button(self.wd_gm, text='全场', width=self.bt_w, height=self.bt_h, compound='center',
-                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
-        first_button = Button(self.wd_gm, text='第一节', width=self.bt_w, height=self.bt_h, compound='center',
-                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
-        secnd_button = Button(self.wd_gm, text='第二节', width=self.bt_w, height=self.bt_h, compound='center',
-                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
-        fsthf_button = Button(self.wd_gm, text='上半场', width=self.bt_w, height=self.bt_h, compound='center',
-                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
-        third_button = Button(self.wd_gm, text='第三节', width=self.bt_w, height=self.bt_h, compound='center',
-                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
-        forth_button = Button(self.wd_gm, text='第四节', width=self.bt_w, height=self.bt_h, compound='center',
-                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
-        sndhf_button = Button(self.wd_gm, text='下半场', width=self.bt_w, height=self.bt_h, compound='center',
-                              cursor='hand2', command=self.span, font=('SimHei', self.fontsize))
+        rt = self.label(self.hometeam, self.fontsize * 2)
+        ht = self.label(self.roadteam, self.fontsize * 2)
+        rt_sr = self.label(self.res[self.hometeam][0], self.fontsize * 2)
+        ht_sr = self.label(self.res[self.roadteam][0], self.fontsize * 2)
+        to = self.label('vs', self.fontsize)
+        rt_wl = self.label('(%s)' % self.res[self.hometeam][1], self.fontsize)
+        ht_wl = self.label('(%s)' % self.res[self.roadteam][1], self.fontsize)
+        btns = []    # 8个按钮
+        btn_texts = ['全场', '进阶'] if self.season < 1996\
+               else ['全场', '进阶', '第一节', '第二节', '上半场', '第三节', '第四节', '下半场']
+        for i, j in enumerate(btn_texts):
+            btns.append(self.button(j, i))
         # 控件布局
         rt.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=0)
         rt_sr.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=1)
@@ -76,13 +119,11 @@ class Show_single_game(object):
         ht.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=4)
         rt_wl.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=0)
         ht_wl.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4)
-        whole_button.grid(padx=self.paddingx, pady=self.paddingy, row=3, rowspan=2, column=0)
-        first_button.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=1)
-        secnd_button.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=2)
-        fsthf_button.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=3)
-        third_button.grid(padx=self.paddingx, pady=self.paddingy, row=4, column=1)
-        forth_button.grid(padx=self.paddingx, pady=self.paddingy, row=4, column=2)
-        sndhf_button.grid(padx=self.paddingx, pady=self.paddingy, row=4, column=3)
+        for i, j in enumerate(btns):
+            j.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=i)
+        self.trees = [ttk.Treeview(self.wd_gm, columns=self.tbs[0][0][0], show='headings'),
+                      ttk.Treeview(self.wd_gm, columns=self.tbs[0][0][0], show='headings')]
+        self.tree_generate()
         self.wd_gm.mainloop()
 
 
@@ -94,7 +135,7 @@ class Show_list_results(object):
         self.paddingy = 10
         self.wd_res = Toplevel()
         self.wd_res.iconbitmap('../images/nbahalfcourt.ico')
-        self.wd_res.geometry('1500x800+50+100')
+        self.wd_res.geometry('1500x800+200+100')
         # self.wd_res.resizable(width=True, height=True)
         self.columns = columns
         self.res = res
@@ -133,11 +174,7 @@ class Show_list_results(object):
 
     def double(self, event):
         gm = self.dates[int(self.tree.selection()[0][1:], 16) - 1]
-        month = int(gm[4:6])
-        season = int(gm[:4]) - 1 if month < 9 else int(gm[:4])
-        game = LoadPickle('../data/seasons_boxscores/%d_%d/%s/%s_boxscores.pickle' %
-                          (season, season + 1, 'playoffs' if self.RP else 'regular', gm))
-        game_win = Show_single_game(game)
+        game_win = Show_single_game(gm, self.RP)
         game_win.loop()
 
     def tree_generate(self):
@@ -152,8 +189,9 @@ class Show_list_results(object):
         # 逐条插入数据
         for i, r in enumerate(self.res[:-2]):
             r[1] = r[1][:8]
-            if isinstance(r[4], float):
-                r[4] = ''
+            for j in range(len(r)):
+                if isinstance(r[j], float) and math.isnan(r[j]):
+                    r[j] = ''
             self.tree.insert('', i, text=str(i), values=tuple(r))
         # 滚动条
         scrollbarx = Scrollbar(self.wd_res, orient='horizontal', command=self.tree.xview)
@@ -212,7 +250,7 @@ class Search_by_plyr(object):
         self.wd_.geometry('+500+20')
         self.stats_setting = {}
         self.plyr_ent_value = StringVar()
-        self.plyr_ent_value.set('LeBron James')
+        self.plyr_ent_value.set('Julius Erving')
         self.ROP = StringVar()
         self.ROP.set(None)
         self.wd = Frame(self.wd_)
