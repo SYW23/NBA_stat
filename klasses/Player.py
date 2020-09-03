@@ -111,7 +111,6 @@ class Player(object):
         return np.sum(self._get_item(item).astype(np.float64))
 
     def searchGame(self, stats):
-        print(stats)
         # 单场比赛数据查询
         RP = regular_items if self.ROP == 'regular' else playoff_items
         resL = []
