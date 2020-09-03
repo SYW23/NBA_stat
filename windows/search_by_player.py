@@ -31,7 +31,7 @@ class Show_single_game(object):
         self.season = int(gm[:4]) - 1 if self.month < 9 else int(gm[:4])
         game = LoadPickle('../data/seasons_boxscores/%d_%d/%s/%s_boxscores.pickle' %
                           (self.season, self.season + 1, 'playoffs' if ROP else 'regular', gm))
-        [self.hometeam, self.roadteam] = [x for x in game[0].keys()]
+        [self.roadteam, self.hometeam] = [x for x in game[0].keys()]
         self.res = game[0]
         self.tbs = game[1:]
         self.columns = None
@@ -99,18 +99,20 @@ class Show_single_game(object):
         self.frame_btn = Frame(self.wd_gm)
         self.frame_btn.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=0, columnspan=5)
         # 控件设置
-        rt = self.label(self.hometeam, self.fontsize * 2)
-        ht = self.label(self.roadteam, self.fontsize * 2)
-        rt_sr = self.label(self.res[self.hometeam][0], self.fontsize * 2)
-        ht_sr = self.label(self.res[self.roadteam][0], self.fontsize * 2)
+        rt = self.label(self.roadteam, self.fontsize * 2)
+        ht = self.label(self.hometeam, self.fontsize * 2)
+        rt_sr = self.label(self.res[self.roadteam][0], self.fontsize * 2)
+        ht_sr = self.label(self.res[self.hometeam][0], self.fontsize * 2)
         to = self.label('vs', self.fontsize)
-        rt_wl = self.label('(%s)' % self.res[self.hometeam][1], self.fontsize)
-        ht_wl = self.label('(%s)' % self.res[self.roadteam][1], self.fontsize)
+        rt_wl = self.label('(%s)' % self.res[self.roadteam][1], self.fontsize)
+        ht_wl = self.label('(%s)' % self.res[self.hometeam][1], self.fontsize)
         btns = []    # 8个按钮
         btn_texts = ['全场', '进阶'] if self.season < 1996\
                else ['全场', '进阶', '第一节', '第二节', '上半场', '第三节', '第四节', '下半场']
         for i, j in enumerate(btn_texts):
             btns.append(self.button(j, i))
+        rt_2 = self.label(self.roadteam, self.fontsize)
+        ht_2 = self.label(self.hometeam, self.fontsize)
         # 控件布局
         rt.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=0)
         rt_sr.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=1)
@@ -121,6 +123,8 @@ class Show_single_game(object):
         ht_wl.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4)
         for i, j in enumerate(btns):
             j.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=i)
+        rt_2.grid(padx=self.paddingx, pady=self.paddingy, row=4, column=0, sticky='w')
+        ht_2.grid(padx=self.paddingx, pady=self.paddingy, row=6, column=0, sticky='w')
         self.trees = [ttk.Treeview(self.wd_gm, columns=self.tbs[0][0][0], show='headings'),
                       ttk.Treeview(self.wd_gm, columns=self.tbs[0][0][0], show='headings')]
         self.tree_generate()
@@ -177,22 +181,19 @@ class Show_list_results(object):
         game_win = Show_single_game(gm, self.RP)
         game_win.loop()
 
-    def tree_generate(self):
-        # 结果罗列表
-        # 定义各列列宽及对齐方式
-        for i in self.columns:
-            if i in ['日期', '赛果', '上场时间']:
-                self.tree.column(i, width=120, anchor='center')
-            else:
-                self.tree.column(i, width=100, anchor='center')
-            self.tree.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
-        # 逐条插入数据
-        for i, r in enumerate(self.res[:-2]):
+    def insert_table(self, tr, tb, command=False, _as=False):
+        for i in self.columns:    # 定义各列列宽及对齐方式
+            tr.column(i, width=120, anchor='center') if i in ['日期', '赛果', '上场时间'] else tr.column(i, width=100, anchor='center')
+            tr.heading(i, text=i) if command else tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
+        for i, r in enumerate(tb):    # 逐条插入数据
             r[1] = r[1][:8]
             for j in range(len(r)):
                 if isinstance(r[j], float) and math.isnan(r[j]):
                     r[j] = ''
-            self.tree.insert('', i, text=str(i), values=tuple(r))
+            tr.insert('', i, text=str(i), values=tuple(r))
+
+    def tree_generate(self):
+        self.insert_table(self.tree, self.res[:-2], command=True)    # 结果罗列表
         # 滚动条
         scrollbarx = Scrollbar(self.wd_res, orient='horizontal', command=self.tree.xview)
         self.tree.configure(xscrollcommand=scrollbarx.set)
@@ -202,17 +203,7 @@ class Show_list_results(object):
         scrollbarx.place(relx=0.004, rely=0.838, relwidth=0.968, relheight=0.03)
         scrollbary.place(relx=0.982, rely=0.20, relwidth=0.016, relheight=0.652)
         self.tree.place(relx=0.004, rely=0.20, relwidth=0.968, relheight=0.652)
-        # 平均&总和表
-        for i in self.columns:
-            if i in ['日期', '赛果', '上场时间']:
-                self.tree_as.column(i, width=120, anchor='center')
-            else:
-                self.tree_as.column(i, width=100, anchor='center')
-            self.tree_as.heading(i, text=i)
-        # 逐条插入数据
-        for i, r in enumerate(self.res[-2:]):
-            r[1] = r[1][:8]
-            self.tree_as.insert('', i, text=str(i), values=tuple(r))
+        self.insert_table(self.tree_as, self.res[-2:], _as=True)    # 平均&总和表
         # 滚动条
         scrollbarx_as = Scrollbar(self.wd_res, orient='horizontal', command=self.tree_as.xview)
         self.tree_as.configure(xscrollcommand=scrollbarx_as.set)
@@ -264,18 +255,21 @@ class Search_by_plyr(object):
                           '篮板': [5, 0], '助攻': [5, 1], '抢断': [7, 0], '盖帽': [7, 1], '失误': [8, 0],
                           '犯规': [8, 1], '得分': [4, 0], '比赛评分': [16, 1], '正负值': [17, 0], '本轮比赛序号': [16, 0]}
 
+    def label(self, win, text, fs, w, h, ac):
+        return Label(win, text=text, font=('SimHei', fs), width=w, height=h, anchor=ac)
+
     def one_tick_sel(self, text, value, command):
         return Radiobutton(self.wd, text=text, value=value, command=command,
                            variable=self.ROP, width=self.radiobutton_w, height=1)
 
     def place_stat(self, text, row, c):
-        Label(self.wd, text=text + ':', font=('SimHei', self.fontsize), width=self.col_w, height=1,
-              anchor='e').grid(padx=self.paddingx, pady=self.paddingy, row=row, column=c)
+        self.label(self.wd, text + ':', self.fontsize,
+                   self.col_w, 1, 'e').grid(padx=self.paddingx, pady=self.paddingy, row=row, column=c)
         if text not in ['主队', '主客场', '对手', '赛果', '是否首发', '轮次']:
             ent1 = Entry(self.wd, width=10)
             ent2 = Entry(self.wd, width=10)
-            Label(self.wd, text='-', font=('SimHei', self.fontsize), width=self.col_w // 3, height=1,
-                  anchor='center').grid(padx=self.paddingx // 2, pady=self.paddingy, row=row, column=c + 2)
+            self.label(self.wd, '-', self.fontsize, self.col_w // 3, 1,
+                       'center').grid(padx=self.paddingx // 2, pady=self.paddingy, row=row, column=c + 2)
             ent1.grid(row=row, column=c + 1, padx=self.paddingx // 2, pady=self.paddingy)
             ent2.grid(row=row, column=c + 3, padx=self.paddingx // 2, pady=self.paddingy)
             self.stats_setting[text] = [ent1, ent2]
@@ -285,7 +279,6 @@ class Search_by_plyr(object):
             self.stats_setting[text] = [ent]
 
     def ROPselection(self):
-        # print(self.wd.grid_slaves())
         for i in self.wd.grid_slaves()[:-9]:
             i.grid_remove()
         ROP = regular_items if self.ROP.get() == 'regular' else playoff_items
@@ -321,7 +314,6 @@ class Search_by_plyr(object):
                 messagebox.showinfo('提示', '请设置查询条件！')
             else:
                 res = player.searchGame(set)
-                # print(res)
                 if res:
                     RP = regular_items if self.ROP.get() == 'regular' else playoff_items
                     result_window = Show_list_results(res, list(RP.keys()), self.ROP.get())
@@ -343,8 +335,7 @@ class Search_by_plyr(object):
         bg_img = ImageTk.PhotoImage(bg_img)
         Label(self.wd, image=bg_img).place(x=0, y=0, relwidth=1, relheight=1)
         # 控件设置
-        plyr = Label(self.wd, text='球员:', font=('SimHei', self.fontsize),
-                     width=self.col_w, height=1, anchor='e')
+        plyr = self.label(self.wd, '球员:', self.fontsize, self.col_w, 1, 'e')
         plyr_ent = Entry(self.wd, width=20, textvariable=self.plyr_ent_value, font=('SimHei', 15))
         rglr_sel = self.one_tick_sel('常规赛', 'regular', self.ROPselection)
         plyf_sel = self.one_tick_sel('季后赛', 'playoff', self.ROPselection)
@@ -352,8 +343,7 @@ class Search_by_plyr(object):
         search_img = ImageTk.PhotoImage(search_img)
         search_button = Button(self.wd, text='查  询', width=65, height=30, image=search_img,
                                compound='center', cursor='hand2', command=self.search, font=('SimHei', 14))
-        notion = Label(self.wd, text='说明:', font=('SimHei', self.fontsize),
-                       width=self.col_w, height=1, anchor='e')
+        notion = self.label(self.wd, '说明:', self.fontsize, self.col_w, 1, 'e')
         help_note = '主客场：0客1主\n' \
                     '比赛序号：赛季第n场比赛\n' \
                     '年龄：35-001    赛果：W/L    日期：%s\n' \
@@ -362,8 +352,7 @@ class Search_by_plyr(object):
         notion_ = Label(self.wd, text=help_note, font=('SimHei', 11),
                         width=self.col_w * 5, height=6, anchor='w', justify='left')
         sep = ttk.Separator(self.wd, orient='horizontal')  # 分割线
-        test = Label(self.wd, text='test:', font=('SimHei', self.fontsize),
-                     width=self.col_w, height=1, anchor='e')
+        test = self.label(self.wd, 'test:', self.fontsize, self.col_w, 1, 'e')
         # 控件布局
         plyr.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=0)
         plyr_ent.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=1, columnspan=3)

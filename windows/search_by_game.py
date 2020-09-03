@@ -56,8 +56,6 @@ class Search_by_game(object):
     def QTRselection(self):
         pass
 
-
-
     def loop(self):
         # 背景图片
         bg_img = Image.open('../images/james2.jpg')

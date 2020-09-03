@@ -2,7 +2,7 @@ import sys
 
 sys.path.append('../')
 import pandas as pd
-from klasses.stats_items import regular_items, playoff_items
+from klasses.stats_items import *
 from klasses.miscellaneous import MPTime, WinLoseCounter
 import numpy as np
 import math
@@ -17,10 +17,50 @@ class Player(object):
         self.games = pd.read_csv(self.playerFileDir)
         self.seasons = np.sum(self.games['G'] == 'G') + 1
         self.season_index = [-1] + list(self.games[self.games['G'].isin(['G'])].index) + [self.games.shape[0]]
+        col_date = self.games.columns[1]
+        month = int(self.games[col_date][0][4:6])
+        self.start_season = int(self.games[col_date][0][:4]) - 1 if month < 9 else int(self.games[col_date][0][:4])
+        month = int(list(self.games[col_date])[-1][4:6])
+        self.end_season = int(list(self.games[col_date])[-1][:4]) - 1 if month < 9 else int(list(self.games[col_date])[-1][:4])
+        print(self.start_season, self.end_season)
 
-    def yieldSeasons(self):  # 按赛季返回
+    def _items_cmp(self, L):    # 找出赛季数据统计缺失项并按顺序返回
+        if L == 19 and self.ROP == 'regular':
+            return sorted([[regular_items[x], x] for x in list(set(regular_items.keys()) - set(regular_items_1973.keys()))])
+        elif L == 23 and self.ROP == 'regular':
+            return sorted([[regular_items[x], x] for x in list(set(regular_items.keys()) - set(regular_items_1977.keys()))])
+        elif L == 25 and self.ROP == 'regular':
+            return sorted([[regular_items[x], x] for x in list(set(regular_items.keys()) - set(regular_items_1979.keys()))])
+        elif L == 28 and self.ROP == 'regular':
+            return sorted([[regular_items[x], x] for x in list(set(regular_items.keys()) - set(regular_items_2000.keys()))])
+        elif L == 20 and self.ROP == 'playoff':
+            return sorted([[playoff_items[x], x] for x in list(set(playoff_items.keys()) - set(playoff_items_1973.keys()))])
+        elif L == 24 and self.ROP == 'playoff':
+            return sorted([[playoff_items[x], x] for x in list(set(playoff_items.keys()) - set(playoff_items_1977.keys()))])
+        elif L == 26 and self.ROP == 'playoff':
+            return sorted([[playoff_items[x], x] for x in list(set(playoff_items.keys()) - set(playoff_items_1979.keys()))])
+        elif L == 29 and self.ROP == 'playoff':
+            return sorted([[playoff_items[x], x] for x in list(set(playoff_items.keys()) - set(playoff_items_2000.keys()))])
+        return []
+
+    def yieldSeasons(self, to_integrated=False):  # 按赛季返回
         for i in range(self.seasons):
-            yield self.games.loc[self.season_index[i] + 1:self.season_index[i + 1] - 1]
+            if to_integrated:
+                tmp = [float('nan') if 'Unnamed' in x else x for x in list(self.games.columns)] if i == 0\
+                    else list(self.games.loc[self.season_index[i]])
+                for j in tmp[::-1]:
+                    if isinstance(j, float) and math.isnan(j):
+                        tmp.pop()
+                    else:
+                        break
+                omit = self._items_cmp(len(tmp))
+                fm = self.games.loc[self.season_index[i] + 1:self.season_index[i + 1] - 1]
+                for j in omit:
+                    fm.insert(j[0], j[1], float('nan'))
+                fm.drop(fm.columns[29 if self.ROP == 'regular' else 30:], axis=1, inplace=True)
+                yield fm
+            else:
+                yield self.games.loc[self.season_index[i] + 1:self.season_index[i + 1] - 1]
 
     def yieldGames(self, season, del_absent=True):  # 按单场比赛返回
         '''
@@ -71,12 +111,12 @@ class Player(object):
         return np.sum(self._get_item(item).astype(np.float64))
 
     def searchGame(self, stats):
-        # print(stats)
+        print(stats)
         # 单场比赛数据查询
         RP = regular_items if self.ROP == 'regular' else playoff_items
         resL = []
         WOL = [0, 0]  # 胜负统计
-        for s in self.yieldSeasons():
+        for s in self.yieldSeasons(to_integrated=True):
             for game in self.yieldGames(s):
                 res = 1
                 for k in stats:
@@ -90,7 +130,8 @@ class Player(object):
                         if not eval('%s%s%s' % (x, '==', stats[k][1])):
                             res = 0
                             break
-                    else:
+                    else:    # 大小比较
+                        # 整理部分统计项数据格式
                         if k == '日期':
                             x = game[RP[k]][:8]
                         elif k in ['年龄', '上场时间']:
@@ -101,15 +142,18 @@ class Player(object):
                         else:
                             x = game[RP[k]]
                         if stats[k][0] == 2:    # 区间比较
+                            # 年龄和上场时间格式特殊处理
                             if k in ['年龄', '上场时间']:
                                 y = [stats[k][1][0][:2] + stats[k][1][0][3:],
                                      stats[k][1][1][:2] + stats[k][1][1][3:]]
                             else:
                                 y = [stats[k][1][0], stats[k][1][1]]
+                            # 比较
                             if not eval(x + '>=' + y[0] + ' and ' + x + '<=' + y[1]):
                                 res = 0
                                 break
                         else:    # 大于或小于
+                            # 年龄和上场时间格式特殊处理
                             if k in ['年龄', '上场时间']:
                                 y = stats[k][1][:2] + stats[k][1][3:]
                                 x = game[RP[k]][:2] + game[RP[k]][3:]
@@ -117,16 +161,15 @@ class Player(object):
                                 y = stats[k][1]
                                 x = game[RP[k]]
                             comp = '<=' if stats[k][0] else '>='
+                            # 比较
                             if not eval(x + comp + y):
                                 res = 0
                                 break
                 if res:  # 符合条件，添加至结果列表
                     resL.append(game)
-        print(resL)
         # 求取平均和总和
         if resL:
             tmp = pd.DataFrame(resL, columns=regular_items.keys() if self.ROP == 'regular' else playoff_items.keys())
-            # tmp.to_csv('tmp.csv', index=None)
             ave = []
             sumn = []
             for k in tmp.columns:
@@ -158,7 +201,8 @@ class Player(object):
                 elif k == '上场时间':    # 时间加和与平均
                     sum_time = MPTime('0:00.0', reverse=False)
                     for i in tmp[k]:
-                        sum_time += MPTime(i, reverse=False)
+                        if isinstance(i, str):
+                            sum_time += MPTime(i, reverse=False)
                     ave.append(sum_time.average(tmp.shape[0]))
                     sumn.append(sum_time.strtime[:-2])
                 elif '命中率' in k:    # 命中率单独计算
@@ -170,13 +214,15 @@ class Player(object):
                 else:
                     tmp_sg = tmp[k][tmp[k].notna()]
                     a = '%.1f' % tmp_sg.astype('float').mean()
-                    s = '%.1f' % tmp_sg.astype('float').sum() if k == '比赛评分'\
-                        else int(tmp_sg.astype('int').sum())    # 比赛评分精确小数点后一位
+                    s = '%.1f' % tmp_sg.astype('float').sum() if k == '比赛评分' else int(tmp_sg.astype('int').sum())
                     if k == '正负值':    # 正负值加+号
                         if s != 0 and a[0] != '-':
                             a = '+' + a
                         if s > 0:
                             s = '+%d' % s
+                    if a == 'nan':
+                        a = ''
+                        s = ''
                     ave.append(a)
                     sumn.append(s)
             resL.append(ave)
