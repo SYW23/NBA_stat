@@ -24,13 +24,18 @@ for i in playerInf[1:]:
         if int(i[6]) >= 1997 and os.path.exists('./data/players/%s' % playerMark):
             players.append([playerName, playerMark])
 
-diffPlus = 3
-diffMinus = -3
-lastMins = '2:00.0'
+ROP = regularOrPlayoffs[1]
+diffPlus = 5
+diffMinus = -5
+lastMins = '5:00.0'
 clutch = []
 for i in players:
     print("starting analysing %s's games ..." % i[0], end='')
-    clutch.append(playerClutchScoreDistribution(i[0], i[1], HomeOrAts, diffPlus, diffMinus, lastMins, regularOrPlayoffs[1]))
+    playerFileDir = './data/players/' + i[1] + '/%sGames/%sGameBasicStat.pickle' % (ROP, ROP)
+    if os.path.exists(playerFileDir):
+        res = playerClutchScoreDistribution(i[0], i[1], HomeOrAts, diffPlus, diffMinus, lastMins, ROP)
+        if res[-3]:
+            clutch.append(res)
     print('\tDone')
 clutch.sort(reverse=True)
 #%%

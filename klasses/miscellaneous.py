@@ -4,6 +4,9 @@ import numpy as np
 
 class MPTime(object):
     def __init__(self, strtime, reverse=True, qtr=-1):    # reverse为True为倒计时模式，qtr为节次
+        if strtime.count(':') == 2:
+            assert strtime[-3:] == ':00'
+            strtime = strtime[:-3]
         tmp = strtime.index(':')
         self.strtime = strtime
         self.min = int(strtime[:tmp])

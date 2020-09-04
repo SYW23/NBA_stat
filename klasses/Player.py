@@ -15,6 +15,8 @@ class Player(object):
         self.playerFileDir = 'D:/sunyiwu/stat/data/players/' + pm + '/%sGames/%sGameBasicStat.csv' % (ROP, ROP)
         self.ROP = ROP
         self.games = pd.read_csv(self.playerFileDir)
+        tmp = self.games[self.games['G'] != 'G']
+        self.gameNs = tmp[tmp['G'].notna()].shape[0]
         self.seasons = np.sum(self.games['G'] == 'G') + 1
         self.season_index = [-1] + list(self.games[self.games['G'].isin(['G'])].index) + [self.games.shape[0]]
         col_date = self.games.columns[1]

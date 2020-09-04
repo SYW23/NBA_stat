@@ -183,6 +183,9 @@ class Show_list_results_single(object):
             tr.heading(i, text=i) if command else tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
         for i, r in enumerate(tb):    # 逐条插入数据
             r[1] = r[1][:8]
+            if r[8].count(':') == 2:
+                assert r[8][-3:] == ':00'
+                r[8] = r[8][:-3]
             for j in range(len(r)):
                 if isinstance(r[j], float) and math.isnan(r[j]):
                     r[j] = ''
@@ -325,6 +328,9 @@ class Search_by_plyr(object):
                     else:
                         messagebox.showinfo('提示', '未查询到符合条件的数据！')
                 else:    # 按球员分组
+                    for p in self.pm2pn.keys():
+                        player = Player(p, self.ROP.get())
+
                     return
         else:
             messagebox.showinfo('提示', '请选择比赛类型！')
