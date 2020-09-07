@@ -25,7 +25,7 @@ playerInf = pickle.load(f)
 f.close()
 
 #%%
-for i in playerInf[1:]:    # james 2067
+for i in playerInf[1546:]:    # james 2067
     url = i[1]
     print(url)
     # 获取网页源代码

@@ -2,6 +2,7 @@ import sys
 
 sys.path.append('../')
 import pandas as pd
+import os
 from klasses.stats_items import *
 from klasses.miscellaneous import MPTime, WinLoseCounter
 import numpy as np
@@ -12,19 +13,35 @@ from util import addMinutes
 class Player(object):
     def __init__(self, pm, ROP):  # 构造参数：球员唯一识别号，常规赛or季后赛
         self.pm = pm
-        self.playerFileDir = 'D:/sunyiwu/stat/data/players/' + pm + '/%sGames/%sGameBasicStat.csv' % (ROP, ROP)
-        self.ROP = ROP
-        self.games = pd.read_csv(self.playerFileDir)
-        tmp = self.games[self.games['G'] != 'G']
-        self.gameNs = tmp[tmp['G'].notna()].shape[0]
-        self.seasons = np.sum(self.games['G'] == 'G') + 1
-        self.season_index = [-1] + list(self.games[self.games['G'].isin(['G'])].index) + [self.games.shape[0]]
-        col_date = self.games.columns[1]
-        month = int(self.games[col_date][0][4:6])
-        self.start_season = int(self.games[col_date][0][:4]) - 1 if month < 9 else int(self.games[col_date][0][:4])
-        month = int(list(self.games[col_date])[-1][4:6])
-        self.end_season = int(list(self.games[col_date])[-1][:4]) - 1 if month < 9 else int(list(self.games[col_date])[-1][:4])
-        print(self.start_season, self.end_season)
+        plyrdr = 'D:/sunyiwu/stat/data/players/' + pm + '/%sGames/%sGameBasicStat.csv' % (ROP, ROP)
+        if os.path.exists(plyrdr):
+            self.exists = True
+            self.playerFileDir = plyrdr
+            self.ROP = ROP
+            self.games = pd.read_csv(self.playerFileDir)
+            col_date = self.games.columns[1]
+            month = int(self.games[col_date][0][4:6])
+            self.start_season = int(self.games[col_date][0][:4]) - 1 if month < 9 else int(self.games[col_date][0][:4])
+            month = int(list(self.games[col_date])[-1][4:6])
+            self.end_season = int(list(self.games[col_date])[-1][:4]) - 1 if month < 9\
+                              else int(list(self.games[col_date])[-1][:4])
+            if month >= 9 and self.end_season == 2020:
+                self.end_season = 2019
+            # print(self.start_season, self.end_season)
+            if self.start_season == self.end_season:
+                self.gameNs = 1
+                self.seasons = 1
+                self.season_index = [-1, self.games.shape[0]]
+            else:
+                # print(self.pm, self.start_season, self.end_season)
+                tmp = self.games[self.games['G'] != 'G']
+                self.gameNs = tmp[tmp['G'].notna()].shape[0]
+                self.seasons = np.sum(self.games['G'] == 'G') + 1
+                self.season_index = [-1] + list(self.games[self.games['G'].isin(['G'])].index) + [self.games.shape[0]]
+            # print('生涯出场数：%d' % self.gameNs)
+        else:
+            self.exists = False
+            return
 
     def _items_cmp(self, L):    # 找出赛季数据统计缺失项并按顺序返回
         if L == 19 and self.ROP == 'regular':
@@ -141,6 +158,7 @@ class Player(object):
                         elif k == '分差':
                             x = game[6][3:-1] if not RP else game[7][3:-1]
                         else:
+                            # print(game, k)
                             x = game[RP[k]]
                         if stats[k][0] == 2:    # 区间比较
                             # 年龄和上场时间格式特殊处理
@@ -163,7 +181,8 @@ class Player(object):
                                 x = game[RP[k]]
                             comp = '<=' if stats[k][0] else '>='
                             # 比较
-                            if not eval(x + comp + y):
+                            # print(type(x), x, y, self.pm)
+                            if (isinstance(x, float) and math.isnan(x)) or not eval(str(x) + comp + y):
                                 res = 0
                                 break
                 if res:  # 符合条件，添加至结果列表
@@ -197,8 +216,9 @@ class Player(object):
                     sumn.append(origin)
                 elif k == '是否首发':    # 统计首发次数
                     count = tmp[k].value_counts()
-                    ave.append('%d/%d' % (count.loc['1'], tmp.shape[0]))
-                    sumn.append('%d/%d' % (count.loc['1'], tmp.shape[0]))
+                    started = count.loc['1'] if '1' in list(count.index) else 0
+                    ave.append('%d/%d' % (started, tmp.shape[0]))
+                    sumn.append('%d/%d' % (started, tmp.shape[0]))
                 elif k == '上场时间':    # 时间加和与平均
                     sum_time = MPTime('0:00.0', reverse=False)
                     for i in tmp[k]:
@@ -207,9 +227,12 @@ class Player(object):
                     ave.append(sum_time.average(tmp.shape[0]))
                     sumn.append(sum_time.strtime[:-2])
                 elif '命中率' in k:    # 命中率单独计算
-                    p = '%.3f' % (sumn[-2] / sumn[-1])
-                    if p != '1.000':
-                        p = p[1:]
+                    if sumn[-2] and sumn[-1]:
+                        p = '%.3f' % (sumn[-2] / sumn[-1])
+                        if p != '1.000':
+                            p = p[1:]
+                    else:
+                        p = ''
                     ave.append(p)
                     sumn.append(p)
                 else:

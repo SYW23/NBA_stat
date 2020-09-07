@@ -11,9 +11,21 @@ import cv2
 import numpy as np
 import math
 import time
+from multiprocessing.dummy import Pool as ThreadPool
+from tqdm import tqdm
 from util import LoadPickle
 from klasses.stats_items import regular_items, playoff_items
 from klasses.Player import Player
+
+
+def process(p):
+    player = Player(p[0], p[1])
+    min_ = 50 if p[1] == 'regular' else 5
+    # print(p)
+    if player.exists and player.gameNs > min_:
+        res = player.searchGame(p[2])
+        if res:
+            return res
 
 
 class Show_single_game(object):
@@ -180,10 +192,10 @@ class Show_list_results_single(object):
     def insert_table(self, tr, tb, command=False, _as=False):
         for i in self.columns:    # 定义各列列宽及对齐方式
             tr.column(i, width=120, anchor='center') if i in ['日期', '赛果', '上场时间'] else tr.column(i, width=100, anchor='center')
-            tr.heading(i, text=i) if command else tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
+            tr.heading(i, text=i) if not command else tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
         for i, r in enumerate(tb):    # 逐条插入数据
             r[1] = r[1][:8]
-            if r[8].count(':') == 2:
+            if isinstance(r[8], str) and r[8].count(':') == 2:
                 assert r[8][-3:] == ':00'
                 r[8] = r[8][:-3]
             for j in range(len(r)):
@@ -221,7 +233,45 @@ class Show_list_results_single(object):
 
 
 class Show_list_results_group(Show_list_results_single):
-    pass
+    def __init__(self, res, columns, RP):
+        super(Show_list_results_group, self).__init__(res, columns, RP)
+        self.columns.insert(0, 'player')
+
+    def double(self, event):
+        line_number = int(self.tree.selection()[0][1:], 16) - 1
+        print(line_number)
+        game_win = Show_list_results_single(self.res[line_number][1],
+                                            self.columns[1:], 'regular' if self.RP == 0 else 'playoff')
+        game_win.title('%s每场详细数据' % self.res[line_number][0])
+        game_win.loop('')
+
+    def insert_table(self, tr, tb):
+        for i in self.columns:  # 定义各列列宽及对齐方式
+            tr.column(i, width=120,
+                      anchor='center') if i in ['日期', '赛果', 'player',
+                                                '上场时间'] else tr.column(i, width=100, anchor='center')
+            tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
+        for i, r_ in enumerate(tb):  # 逐条插入数据
+            r = r_[1][-2]
+            r[1] = r[1][:8]
+            if r[8].count(':') == 2:
+                assert r[8][-3:] == ':00'
+                r[8] = r[8][:-3]
+            for j in range(len(r)):
+                if isinstance(r[j], float) and math.isnan(r[j]):
+                    r[j] = ''
+            r = [r_[0]] + r
+            tr.insert('', i, text=str(i), values=tuple(r))
+
+    def tree_generate(self):
+        self.insert_table(self.tree, self.res)    # 结果罗列表
+        scrollbarx = Scrollbar(self.wd_res, orient='horizontal', command=self.tree.xview)    # 滚动条
+        self.tree.configure(xscrollcommand=scrollbarx.set)
+        scrollbary = Scrollbar(self.wd_res, orient='vertical', command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbary.set)
+        scrollbarx.place(relx=0.005, rely=0.97, relwidth=0.97, relheight=0.03)    # 布局
+        scrollbary.place(relx=0.98, rely=0.20, relwidth=0.015, relheight=0.76)
+        self.tree.place(relx=0.005, rely=0.20, relwidth=0.97, relheight=0.76)
 
 
 class Search_by_plyr(object):
@@ -297,7 +347,7 @@ class Search_by_plyr(object):
     def search(self):  # 点击按钮触发搜索函数
         if self.stats_setting:
             set = {}
-            for k in self.stats_setting.keys():  # 遍历文本框，收集查询条件
+            for k in self.stats_setting.keys():  # 遍历文本框控件，收集查询条件
                 ent_s = self.stats_setting[k]
                 if len(ent_s) == 1:
                     if ent_s[0].get():
@@ -328,9 +378,36 @@ class Search_by_plyr(object):
                     else:
                         messagebox.showinfo('提示', '未查询到符合条件的数据！')
                 else:    # 按球员分组
-                    for p in self.pm2pn.keys():
+                    # start = time.time()
+                    # pp = [[x, self.ROP.get(), set] for x in list(self.pm2pn.keys())]
+                    # pool = ThreadPool(4)
+                    # tmp = pool.map(process, pp)
+                    # pool.close()
+                    # pool.join()
+                    # print(len(tmp))
+                    # ress = []
+                    # for x in tmp:
+                    #     if x:
+                    #         ress.append(tmp)
+                    # print(time.time() - start)
+                    start = time.time()
+                    res = []
+                    for p in tqdm(list(self.pm2pn.keys())):
+                        # print(p)
                         player = Player(p, self.ROP.get())
-
+                        if player.exists and player.gameNs > 50:
+                            tmp = player.searchGame(set)
+                            if tmp:
+                                res.append([self.pm2pn[p], tmp])
+                    # print(len(ress))
+                    print(time.time() - start)
+                    if res:
+                        RP = regular_items if self.ROP.get() == 'regular' else playoff_items
+                        result_window = Show_list_results_group(res, list(RP.keys()), self.ROP.get())
+                        result_window.title('%s查询结果' % ('常规赛' if self.ROP.get() == 'regular' else '季后赛'))
+                        result_window.loop(' 共查询到%d个球员' % len(res))
+                    else:
+                        messagebox.showinfo('提示', '未查询到符合条件的数据！')
                     return
         else:
             messagebox.showinfo('提示', '请选择比赛类型！')
@@ -378,8 +455,8 @@ class Search_by_plyr(object):
         notion.grid(padx=self.paddingx, pady=self.paddingy, row=26, column=0)
         notion_.grid(padx=self.paddingx, pady=self.paddingy, row=26, rowspan=6, column=1, columnspan=7)
         # wd.attributes("-alpha", 0.8)
-        self.ROP.set('regular')
-        self.ROPselection()
+        # self.ROP.set('regular')
+        # self.ROPselection()
         self.wd.mainloop()
 
 
