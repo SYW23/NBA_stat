@@ -1,9 +1,12 @@
-from util import getCode
+from util import getCode, writeToPickle
 import pickle
 import os
+import numpy as np
 import pandas as pd
 from bs4 import BeautifulSoup
 from tqdm import tqdm
+from klasses.Player import Player
+from klasses.stats_items import regular_items_en, playoff_items_en
 
 regularOrPlayoffs = ['regular', 'playoff']
 # ========更新常规赛历史得分榜前250名=========================================================
@@ -25,7 +28,7 @@ playerInf = pickle.load(f)
 f.close()
 
 #%%
-for i in playerInf[1546:]:    # james 2067
+for i in playerInf[::-1]:    # james 2067
     url = i[1]
     print(url)
     # 获取网页源代码
@@ -38,6 +41,9 @@ for i in playerInf[1546:]:    # james 2067
     pn = i[1].split('/')[-1][:-5]
     
     # -----常规赛-----
+    seasonAVE = []
+    singleGAMES = []
+    seasonURLs = []
     seasons = playerPage.find('table', id='per_game').find_all('tr')    # 赛季平均
     # 赛季表表头
     items = [x.text for x in seasons[0].find_all('th')]
@@ -52,11 +58,8 @@ for i in playerInf[1546:]:    # james 2067
         pf = []
         last_game = '0'
         last_season = 0
-    if last_season == 0 or last_season > 2015:
+    if last_season == 0 or last_season > 2018:
         # ----逐赛季扫描----
-        seasonAVE = []
-        singleGAMES = []
-        seasonURLs = []
         for ind, season in enumerate(seasons[1:]):
             if season.find_all('th'):
                 th = season.find_all('th')[0]
@@ -135,6 +138,19 @@ for i in playerInf[1546:]:    # james 2067
                 print('无常规赛更新')
         else:
             print('球员未参加过NBA常规赛')
+        
+    # 写入pickle文件
+    res = pd.DataFrame(columns=regular_items_en.keys())
+    p = Player(pm, 'regular')
+    if p.exists:
+        for games in p.yieldSeasons(to_integrated=True):
+            # print(games.columns)
+            res = pd.concat([res, games])
+        for col in res.columns:
+            res[col] = res[col].astype('category')
+        writeToPickle('./data/players/%s/regularGames/regularGameBasicStat.pickle' % pm, res)
+        res.to_csv('./data/players/%s/regularGames/regularGameBasicStat.csv' % pm, header=False, index=None)
+        # pf.to_pickle('./data/players/%s/regularGames/regularGameBasicStat.pkl' % pm)
     
     
     #%%
@@ -162,7 +178,7 @@ for i in playerInf[1546:]:    # james 2067
         pf = []
         last_game = '0'
         last_season = 0
-    if last_season == 0 or last_season > 2015:
+    if last_season == 0 or last_season > 2018:
         # 首赛季表头
         items = [x.get_text().strip() for x in trs[0].find_all('th')][1:]
         if items[1][:4] > str(last_season):
@@ -245,6 +261,17 @@ for i in playerInf[1546:]:    # james 2067
                 print('无季后赛更新')
         else:
             print('球员未参加过NBA季后赛')
+    # 写入pickle文件
+    res = pd.DataFrame(columns=playoff_items_en.keys())
+    p = Player(pm, 'playoff')
+    if p.exists:
+        for games in p.yieldSeasons(to_integrated=True):
+            # print(games.columns)
+            res = pd.concat([res, games])
+        for col in res.columns:
+            res[col] = res[col].astype('category')
+        writeToPickle('./data/players/%s/playoffGames/playoffGameBasicStat.pickle' % pm, res)
+        res.to_csv('./data/players/%s/playoffGames/playoffGameBasicStat.csv' % pm, header=False, index=None)
 # =============================================================================
 #     if i[2] and i[3]:
 #         links = playerPage.find_all('div', class_='section_content')[-1].find_all('ul')[0].find_all('li')

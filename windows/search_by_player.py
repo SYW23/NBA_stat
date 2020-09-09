@@ -14,7 +14,7 @@ import time
 from multiprocessing.dummy import Pool as ThreadPool
 from tqdm import tqdm
 from util import LoadPickle
-from klasses.stats_items import regular_items, playoff_items
+from klasses.stats_items import *
 from klasses.Player import Player
 
 
@@ -22,7 +22,7 @@ def process(p):
     player = Player(p[0], p[1])
     min_ = 50 if p[1] == 'regular' else 5
     # print(p)
-    if player.exists and player.gameNs > min_:
+    if player.exists and player.games > min_:
         res = player.searchGame(p[2])
         if res:
             return res
@@ -168,6 +168,8 @@ class Show_list_results_single(object):
     def special_sorting(l, reverse):
         if 'W' in l[0][0] or 'L' in l[0][0]:
             ast_sort = np.array([int(x[0][3:-1]) for x in l])
+        elif '场' in l[0][0]:
+            ast_sort = np.array([int(x[0][:-3]) for x in l])
         else:
             ast_sort = np.array([int(x[0]) for x in l])
         out = np.argsort(ast_sort)
@@ -177,7 +179,8 @@ class Show_list_results_single(object):
 
     def sort_column(self, col, reverse):  # 点击列名排列
         l = [[self.tree.set(k, col), k] for k in self.tree.get_children('')]  # 取出所选列中每行的值
-        if l[0][0][0] == '-' or l[0][0][0] == 'L' or '+' in l[0][0]:
+        # print(l)
+        if l[0][0][0] == '-' or l[0][0][0] == 'L' or '+' in l[0][0] or '场' in l[0][0]:
             l = self.special_sorting(l, reverse)  # 特殊排序
         else:
             l.sort(reverse=reverse)  # 排序方式
@@ -191,7 +194,7 @@ class Show_list_results_single(object):
 
     def insert_table(self, tr, tb, command=False, _as=False):
         for i in self.columns:    # 定义各列列宽及对齐方式
-            tr.column(i, width=120, anchor='center') if i in ['日期', '赛果', '上场时间'] else tr.column(i, width=100, anchor='center')
+            tr.column(i, width=80, anchor='center') if i in ['Date', 'WoL', 'Playoffs'] else tr.column(i, width=60, anchor='center')
             tr.heading(i, text=i) if not command else tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
         for i, r in enumerate(tb):    # 逐条插入数据
             r[1] = r[1][:8]
@@ -239,7 +242,7 @@ class Show_list_results_group(Show_list_results_single):
 
     def double(self, event):
         line_number = int(self.tree.selection()[0][1:], 16) - 1
-        print(line_number)
+        # print(line_number)
         game_win = Show_list_results_single(self.res[line_number][1],
                                             self.columns[1:], 'regular' if self.RP == 0 else 'playoff')
         game_win.title('%s每场详细数据' % self.res[line_number][0])
@@ -247,9 +250,12 @@ class Show_list_results_group(Show_list_results_single):
 
     def insert_table(self, tr, tb):
         for i in self.columns:  # 定义各列列宽及对齐方式
-            tr.column(i, width=120,
-                      anchor='center') if i in ['日期', '赛果', 'player',
-                                                '上场时间'] else tr.column(i, width=100, anchor='center')
+            if i in ['Date', 'WoL', 'Playoffs']:
+                tr.column(i, width=80, anchor='center')
+            elif i == 'player':
+                tr.column(i, width=150, anchor='center')
+            else:
+                tr.column(i, width=60, anchor='center')
             tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
         for i, r_ in enumerate(tb):  # 逐条插入数据
             r = r_[1][-2]
@@ -300,13 +306,13 @@ class Search_by_plyr(object):
         self.wd.grid()
         self.wd_.bind("<Return>", self.search_enter)
         self.plyr_ent = None
-        self.grid_posi = {'比赛序号': [15, 0], '日期': [15, 1], '年龄': [16, 0], '主队': [1, 0], '主客场': [1, 1],
-                          '对手': [2, 0], '赛果': [2, 1], '是否首发': [3, 0], '轮次': [3, 1], '上场时间': [4, 1],
-                          '命中数': [9, 0], '出手数': [9, 1], '命中率': [10, 0], '三分球命中数': [11, 0],
-                          '三分球出手数': [11, 1], '三分球命中率': [12, 0], '罚球命中数': [13, 0],
-                          '罚球出手数': [13, 1], '罚球命中率': [14, 0], '前场篮板': [6, 0], '后场篮板': [6, 1],
-                          '篮板': [5, 0], '助攻': [5, 1], '抢断': [7, 0], '盖帽': [7, 1], '失误': [8, 0],
-                          '犯规': [8, 1], '得分': [4, 0], '比赛评分': [16, 1], '正负值': [17, 0], '本轮比赛序号': [16, 0]}
+        self.grid_posi = {'G': [15, 0], 'Date': [15, 1], 'Age': [16, 0], 'Tm': [1, 0], 'RoH': [1, 1],
+                          'Opp': [2, 0], 'WoL': [2, 1], 'GS': [3, 0], 'Series': [3, 1], 'MP': [4, 1],
+                          'FG': [9, 0], 'FGA': [9, 1], 'FG%': [10, 0], '3P': [11, 0],
+                          '3PA': [11, 1], '3P%': [12, 0], 'FT': [13, 0], 'Playoffs': [15, 1],
+                          'FTA': [13, 1], 'FT%': [14, 0], 'ORB': [6, 0], 'DRB': [6, 1],
+                          'TRB': [5, 0], 'AST': [5, 1], 'STL': [7, 0], 'BLK': [7, 1], 'TOV': [8, 0],
+                          'PF': [8, 1], 'PTS': [4, 0], 'GmSc': [16, 1], '+/-': [17, 0], 'G#': [16, 0]}
 
     def label(self, win, text, fs, w, h, ac):
         return Label(win, text=text, font=('SimHei', fs), width=w, height=h, anchor=ac)
@@ -315,28 +321,28 @@ class Search_by_plyr(object):
         return Radiobutton(win, text=text, value=value, command=command,
                            variable=variable, width=w, height=1)
 
-    def place_stat(self, text, row, c):
-        self.label(self.wd, text + ':', self.fontsize,
+    def place_stat(self, k, row, c):
+        self.label(self.wd, en2ch[k] + ':', self.fontsize,
                    self.col_w, 1, 'e').grid(padx=self.paddingx, pady=self.paddingy, row=row, column=c)
-        if text not in ['主队', '主客场', '对手', '赛果', '是否首发', '轮次']:
+        if k not in ['Tm', 'RoH', 'Opp', 'WoL', 'GS', 'Series']:
             ent1 = Entry(self.wd, width=10)
             ent2 = Entry(self.wd, width=10)
             self.label(self.wd, '-', self.fontsize, self.col_w // 3, 1,
                        'center').grid(padx=self.paddingx // 2, pady=self.paddingy, row=row, column=c + 2)
             ent1.grid(row=row, column=c + 1, padx=self.paddingx // 2, pady=self.paddingy)
             ent2.grid(row=row, column=c + 3, padx=self.paddingx // 2, pady=self.paddingy)
-            self.stats_setting[text] = [ent1, ent2]
+            self.stats_setting[k] = [ent1, ent2]
         else:
             ent = Entry(self.wd, width=20)
             ent.grid(row=row, column=c + 1, columnspan=3, padx=self.paddingx // 2, pady=self.paddingy)
-            self.stats_setting[text] = [ent]
+            self.stats_setting[k] = [ent]
 
     def ROPselection(self):
         [i.grid_remove() for i in self.wd.grid_slaves()[:-9]]
-        ROP = regular_items if self.ROP.get() == 'regular' else playoff_items
+        ROP = regular_items_en if self.ROP.get() == 'regular' else playoff_items_en
         self.stats_setting.clear()
-        [self.place_stat(k, self.grid_posi[k][0] + 2, self.grid_posi[k][1] * 4) for i, k in enumerate(ROP.keys())]
-        self.place_stat('比赛分差', 19, 4)
+        [self.place_stat(k, self.grid_posi[k][0] + 2, self.grid_posi[k][1] * 4) for k in ROP]
+        self.place_stat('Diff', 19, 4)
 
     def plyr_or_not(self):    # 是否按球员分组
         self.plyr_ent['state'] = 'disabled' if self.PON.get() == 'no' else 'normal'
@@ -351,15 +357,15 @@ class Search_by_plyr(object):
                 ent_s = self.stats_setting[k]
                 if len(ent_s) == 1:
                     if ent_s[0].get():
-                        set[k] = [-1, ent_s[0].get()]  # 相等比较，-1
+                        set[k] = [-1, [ent_s[0].get()]]  # 相等比较，-1
                 else:
                     assert len(ent_s) == 2
                     if ent_s[0].get() and ent_s[1].get():  # 大于小于同时存在，2
                         set[k] = [2, [ent_s[0].get(), ent_s[1].get()]]
                     elif ent_s[0].get() and not ent_s[1].get():  # 只有大于，0
-                        set[k] = [0, ent_s[0].get()]
+                        set[k] = [0, [ent_s[0].get()]]
                     elif not ent_s[0].get() and ent_s[1].get():  # 只有小于，1
-                        set[k] = [1, ent_s[1].get()]
+                        set[k] = [1, [ent_s[1].get()]]
             if not set:
                 messagebox.showinfo('提示', '请设置查询条件！')
             else:
@@ -371,13 +377,13 @@ class Search_by_plyr(object):
                     res = player.searchGame(set)
                     # 处理结果
                     if res:
-                        RP = regular_items if self.ROP.get() == 'regular' else playoff_items
+                        RP = regular_items_en if self.ROP.get() == 'regular' else playoff_items_en
                         result_window = Show_list_results_single(res, list(RP.keys()), self.ROP.get())
                         result_window.title('%s %s 查询结果' % (self.plyr_ent_value.get(), self.ROP_dict[self.ROP.get()]))
                         result_window.loop(' 共查询到%d条记录' % (len(res) - 2))
                     else:
                         messagebox.showinfo('提示', '未查询到符合条件的数据！')
-                else:    # 按球员分组
+                else:    # 按球员分组查询
                     # start = time.time()
                     # pp = [[x, self.ROP.get(), set] for x in list(self.pm2pn.keys())]
                     # pool = ThreadPool(4)
@@ -392,17 +398,18 @@ class Search_by_plyr(object):
                     # print(time.time() - start)
                     start = time.time()
                     res = []
+                    min_ = 50 if self.ROP.get() == 'regular' else 5
                     for p in tqdm(list(self.pm2pn.keys())):
                         # print(p)
                         player = Player(p, self.ROP.get())
-                        if player.exists and player.gameNs > 50:
+                        if player.exists and not isinstance(player.data, list) and player.games > min_:
                             tmp = player.searchGame(set)
                             if tmp:
                                 res.append([self.pm2pn[p], tmp])
                     # print(len(ress))
                     print(time.time() - start)
                     if res:
-                        RP = regular_items if self.ROP.get() == 'regular' else playoff_items
+                        RP = regular_items_en if self.ROP.get() == 'regular' else playoff_items_en
                         result_window = Show_list_results_group(res, list(RP.keys()), self.ROP.get())
                         result_window.title('%s查询结果' % ('常规赛' if self.ROP.get() == 'regular' else '季后赛'))
                         result_window.loop(' 共查询到%d个球员' % len(res))
