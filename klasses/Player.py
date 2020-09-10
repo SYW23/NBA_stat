@@ -10,9 +10,10 @@ import numpy as np
 import math
 
 
-as_str = ['Date', 'Age', 'Tm', 'RoH', 'Opp', 'MP']    # 可作为字符串直接比较
-as_other = ['WoL', 'RoH'', Date', 'Playoffs']        # 需要做处理后再比较
-
+# as_str = ['Date', 'Age', 'Tm', 'RoH', 'Opp', 'MP']    # 可作为字符串直接比较
+# as_other = ['WoL', 'RoH'', Date', 'Playoffs']        # 需要做处理后再比较
+cmps = {-1: ['=='], 0: ['>='], 1: ['<='], 2: ['>=', '<=']}
+cmps_ = {-1: ['!='], 0: ['>='], 1: ['<='], 2: ['>=', '<=']}
 
 class Player(object):
     def __init__(self, pm, RoP, csv=False):  # 构造参数：球员唯一识别号，常规赛or季后赛('regular' or 'playoff')
@@ -91,13 +92,12 @@ class Player(object):
                 ave.append('/')
                 sumn.append('/')
             elif k == 'RoH':  # 统计主客场数量
-                count = tmp[k].value_counts()
                 try:
-                    ave.append('%d主/%d客' % (tmp.shape[0] - count.loc['@'], count.loc['@']))
-                    sumn.append('%d主/%d客' % (tmp.shape[0] - count.loc['@'], count.loc['@']))
+                    at = np.sum(tmp[k] == '@')
                 except:
-                    ave.append('%d主/%d客' % (tmp.shape[0], 0))
-                    sumn.append('%d主/%d客' % (tmp.shape[0], 0))
+                    at = 0
+                ave.append('%dr/%dh' % (at, tmp.shape[0] - at))
+                sumn.append('%dr/%dh' % (at, tmp.shape[0] - at))
             elif k == 'WoL':  # 统计几胜几负
                 origin = WinLoseCounter(False)
                 for i in tmp[k]:
@@ -105,10 +105,12 @@ class Player(object):
                 ave.append(origin.average())
                 sumn.append(origin)
             elif k == 'GS':  # 统计首发次数
-                count = tmp[k].value_counts()
-                started = count.loc['1'] if '1' in list(count.index) else 0
-                ave.append('%d/%d' % (started, tmp.shape[0]))
-                sumn.append('%d/%d' % (started, tmp.shape[0]))
+                try:
+                    s = np.sum(tmp[k] == '1')
+                except:
+                    s = 0
+                ave.append('%d/%d' % (s, tmp.shape[0]))
+                sumn.append('%d/%d' % (s, tmp.shape[0]))
             elif k == 'MP':  # 时间加和与平均
                 sum_time = MPTime('0:00.0', reverse=False)
                 for i in tmp[k]:
@@ -117,7 +119,7 @@ class Player(object):
                 ave.append(sum_time.average(tmp.shape[0]))
                 sumn.append(sum_time.strtime[:-2])
             elif '%' in k:  # 命中率单独计算
-                if sumn[-2] and sumn[-1]:
+                if sumn[-2] >= 0 and sumn[-1] > 0:
                     p = '%.3f' % (sumn[-2] / sumn[-1])
                     if p != '1.000':
                         p = p[1:]
@@ -128,7 +130,7 @@ class Player(object):
             else:
                 tmp_sg = tmp[k][tmp[k].notna()]
                 a = '%.1f' % tmp_sg.astype('float').mean()
-                s = '%.1f' % tmp_sg.astype('float').sum() if k == 'GmSc' else int(tmp_sg.astype('int').sum())
+                s = '%.1f' % tmp_sg.astype('float').sum() if k == 'GmSc' else int(tmp_sg.astype('int').sum())    # 除比赛评分以外其他求和结果均为整数
                 if k == '+/-':  # 正负值加+号
                     if s != 0 and a[0] != '-':
                         a = '+' + a
@@ -147,90 +149,61 @@ class Player(object):
         games = self.data
         games = self.on_board_games(games)
         for k in stats:
-            if self.dt[k] >= self.dt['FG'] or k in ['G', 'GS', 'G#']:
-                tp = 0
+            if k != 'Diff' and self.dt[k] >= self.dt['FG'] or k in ['G', 'GS', 'G#']:
+                tp = 0    # 数值型
                 target = [int(x) for x in stats[k][1]]
                 tmp_item = games[k].astype('float')
-            elif k in ['Age', 'Tm', 'Opp', 'MP', 'Series']:
-                tp = 1
-                target = [x if k != 'MP' else x + ':00' for x in stats[k][1]]
+            elif k in ['Age', 'Tm', 'Opp', 'Series']:
+                tp = 1    # 字符型
+                target = stats[k][1]
                 tmp_item = games[k].astype('str')
             else:
                 continue
-            if stats[k][0] == 0:
-                cmp = ['>=']
-            elif stats[k][0] == 1:
-                cmp = ['<=']
-            elif stats[k][0] == -1:
-                cmp = ['==']
-            else:
-                cmp = ['<=', '>=']
+            cmp = cmps[stats[k][0]]
             # print(target, cmp)
             for cmp_i, t in enumerate(target):
-                games = eval('games[tmp_item %s %d]' % (cmp[cmp_i], t)) if not tp else eval('games[tmp_item %s "%s"]' % (cmp[cmp_i], t))
-                # print(games)
-        resL = list(games.values)
-        if resL:
-            resL += self.ave_and_sum(resL)
-
-        return resL
+                games = eval('games[tmp_item %s "%s"]' % (cmp[cmp_i], t) if tp else 'games[tmp_item %s %d]' % (cmp[cmp_i], t))
+        games = list(games.values)
         if games:
-            resL = []
-            # 字符型数据比较大小或相等
-            for game in games:
-                res = 1
-                for k in stats:
-                    if stats[k][0] == -1:    # 相等比较
-                        if k == 'RoH':
-                            x = '"0"' if game[self.dt[k]] == '@' else '"1"'
-                        elif k == 'WoL':
-                            x = '"%s"' % game[self.dt[k]][0]
+            # 需要先作预处理后再比较大小或判断相等
+            dup = set(stats) & {'WoL', 'RoH', 'Date', 'Playoffs', 'Diff', 'MP'}
+            if dup:    # 如果条件中包含这四个选项，则做进一步筛选
+                resL = []
+                for game in games:
+                    res, ToF = 1, True
+                    for k in dup:
+                        if ToF:
+                            tp = 0
+                            if k == 'WoL':
+                                tp, x = 1, '"%s"' % game[7 if self.RoP else 6][0]
+                            elif k == 'RoH':
+                                x = '0' if game[4] == '@' else '1'
+                            elif k == 'Date' or k == 'Playoffs':
+                                x = '%s' % game[1][:8]
+                            elif k == 'MP':
+                                tmp = game[9 if self.RoP else 8]
+                                tmp = '0' + tmp if int(tmp[:tmp.index(':')]) < 10 else tmp    # 分钟数小于10前面加0
+                                if len(tmp) == 5:    # 没有数秒位
+                                    tmp += ':00'
+                                tp, x = 1, '"%s"' % tmp
+                            else:
+                                x = '%s' % game[7 if self.RoP else 6][3:-1]
+                            cmp = cmps_[stats[k][0]]
+                            for cmp_i, t in enumerate(stats[k][1]):
+                                t = t + ':00'if k == 'MP' else t
+                                if not eval('%s%s"%s"' % (x, cmp[cmp_i], t) if tp else '%s%s%s' % (x, cmp[cmp_i], t)):
+                                    res, ToF = 0, False
+                                    break
                         else:
-                            x = '"%s"' % game[self.dt[k]]
-                        if not eval('%s%s%s' % (x, '==', '"%s"' % stats[k][1][0])):
-                            res = 0
                             break
-                    else:    # 大小比较（整理部分数据格式—>双边区间比较或单边大小比较）
-                        # 先整理部分统计项数据格式
-                        if k == 'Date' or k == 'Playoffs':
-                            x = game[self.dt[k]][:8]
-                        elif k in ['Age', 'MP']:
-                            x = game[self.dt[k]][:2] + game[self.dt[k]][3:]
-                        elif k == 'Diff':
-                            x = game[6][3:-1] if not self.RoP else game[7][3:-1]
-                        else:
-                            # print(self.pm, game, k)
-                            x = game[self.dt[k]]
+                    if res:  # 符合条件，添加至结果列表
+                        resL.append(game)
+                if not resL:
+                    return []
+            else:
+                resL = games
+            resL += self.ave_and_sum(resL)    # 求取平均和总和
+            return resL
+        else:
+            return []
 
-                        if stats[k][0] == 2:    # 区间比较
-                            # 年龄和上场时间格式特殊处理
-                            if k in ['Age', 'MP']:
-                                y = [stats[k][1][0][:2] + stats[k][1][0][3:],
-                                     stats[k][1][1][:2] + stats[k][1][1][3:]]
-                            else:
-                                y = [stats[k][1][0], stats[k][1][1]]
-                            # 比较
-                            if not eval(x + '>=' + y[0] + ' and ' + x + '<=' + y[1]):
-                                res = 0
-                                break
-                        else:    # 大于或小于
-                            # 年龄和上场时间格式特殊处理
-                            if k in ['Age', 'MP']:
-                                y = stats[k][1][0][:2] + stats[k][1][0][3:]
-                                x = game[self.dt[k]][:2] + game[self.dt[k]][3:]
-                            else:
-                                y = stats[k][1][0]
-                                x = game[self.dt[k]] if k != 'Diff' else x
-                            comp = '<=' if stats[k][0] else '>='
-                            # 比较
-                            # print(type(x), x, y, self.pm)
-                            if (isinstance(x, float) and math.isnan(x)) or not eval(str(x) + comp + y):
-                                res = 0
-                                break
-                if res:  # 符合条件，添加至结果列表
-                    resL.append(game)
-        # 求取平均和总和
-        if resL:
-            resL += self.ave_and_sum(resL)
-
-        return resL

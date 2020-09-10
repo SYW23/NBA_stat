@@ -171,7 +171,7 @@ class Show_list_results_single(object):
         elif '场' in l[0][0]:
             ast_sort = np.array([int(x[0][:-3]) for x in l])
         else:
-            ast_sort = np.array([int(x[0]) for x in l])
+            ast_sort = np.array([float(x[0]) if x[0] else float('nan') for x in l])
         out = np.argsort(ast_sort)
         if reverse:
             out = out[::-1]
@@ -180,7 +180,9 @@ class Show_list_results_single(object):
     def sort_column(self, col, reverse):  # 点击列名排列
         l = [[self.tree.set(k, col), k] for k in self.tree.get_children('')]  # 取出所选列中每行的值
         # print(l)
-        if l[0][0][0] == '-' or l[0][0][0] == 'L' or '+' in l[0][0] or '场' in l[0][0]:
+        if l[0][0].isdigit() or l[0][0] == '' or '.' in l[0][0]\
+                or l[0][0][0] == '-' or l[0][0][0] == 'L' or '+' in l[0][0]\
+                or '场' in l[0][0]:
             l = self.special_sorting(l, reverse)  # 特殊排序
         else:
             l.sort(reverse=reverse)  # 排序方式
@@ -198,9 +200,11 @@ class Show_list_results_single(object):
             tr.heading(i, text=i) if not command else tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
         for i, r in enumerate(tb):    # 逐条插入数据
             r[1] = r[1][:8]
-            if isinstance(r[8], str) and r[8].count(':') == 2:
-                assert r[8][-3:] == ':00'
-                r[8] = r[8][:-3]
+            ix = 8 if not self.RP else 9
+            if isinstance(r[ix], str) and r[ix].count(':') == 2:
+                assert r[ix][-3:] == ':00'
+                r[ix] = r[ix][:-3]
+            r[ix] = '0' + r[ix] if int(r[ix][:r[ix].index(':')]) < 10 else r[ix]
             for j in range(len(r)):
                 if isinstance(r[j], float) and math.isnan(r[j]):
                     r[j] = ''
