@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 import math
 import time
-from multiprocessing.dummy import Pool as ThreadPool
+from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 from util import LoadPickle
 from klasses.stats_items import *
@@ -22,7 +22,7 @@ def process(p):
     player = Player(p[0], p[1])
     min_ = 50 if p[1] == 'regular' else 5
     # print(p)
-    if player.exists and player.games > min_:
+    if player.exists and not isinstance(player.data, list) and player.games > min_:
         res = player.searchGame(p[2])
         if res:
             return res
@@ -143,6 +143,7 @@ class Show_single_game(object):
 class Show_list_results_single(object):
     def __init__(self, res, columns, RP):
         self.fontsize = 10
+        self.font = ('SimHei', self.fontsize)
         self.col_w = 25
         self.paddingx = 10
         self.paddingy = 10
@@ -156,13 +157,29 @@ class Show_list_results_single(object):
         self.tree = None
         self.tree_as = None
         self.dates = [x[1] for x in res]
+        self.stats = None
+        self.cmps = {-1: ['=='], 0: ['>='], 1: ['<=']}
 
     def title(self, tt):  # 结果窗口标题
         self.wd_res.title(tt)
 
     def res_note(self, text):  # 结果说明（第一行）
-        Label(self.wd_res, text=text, font=('SimHei', self.fontsize), anchor='w',
+        Label(self.wd_res, text=text, font=self.font, anchor='w',
               width=self.col_w, height=1).place(relx=0.02, rely=0.15, relwidth=0.2, relheight=0.03)
+
+    def settings_note(self, stats):    # 查询条件展示
+        self.stats = stats
+        text = '查询条件：'
+        for k in stats:
+            ch = en2ch[k]
+            tp = stats[k][0]
+            if tp < 2:
+                text += '%s %s %s' % (ch, self.cmps[tp][0], stats[k][1][0])
+            else:
+                text += '%s %s %s %s %s' % (stats[k][1][0], '<=', ch, '<=', stats[k][1][1])
+            text += '  '
+        Label(self.wd_res, text=text, font=self.font, anchor='w',
+              width=self.col_w, height=1).place(relx=0.221, rely=0.15, relwidth=0.42, relheight=0.03)
 
     @staticmethod
     def special_sorting(l, reverse):
@@ -204,7 +221,7 @@ class Show_list_results_single(object):
             if isinstance(r[ix], str) and r[ix].count(':') == 2:
                 assert r[ix][-3:] == ':00'
                 r[ix] = r[ix][:-3]
-            r[ix] = '0' + r[ix] if int(r[ix][:r[ix].index(':')]) < 10 else r[ix]
+            r[ix] = '0' + r[ix] if isinstance(r[ix], str) and int(r[ix][:r[ix].index(':')]) < 10 else r[ix]
             for j in range(len(r)):
                 if isinstance(r[j], float) and math.isnan(r[j]):
                     r[j] = ''
@@ -226,7 +243,7 @@ class Show_list_results_single(object):
         scrollbarx_as.place(relx=0.005, rely=0.97, relwidth=0.97, relheight=0.03)
         self.tree_as.place(relx=0.005, rely=0.87, relwidth=0.97, relheight=0.13)
 
-    def loop(self, text):  # 参数：结果说明文字
+    def loop(self, text, stats):  # 参数：结果说明文字
         resbg_img = Image.open("../images/kobe_bg.jpg")
         resbg_img.putalpha(64)
         resbg_img = ImageTk.PhotoImage(resbg_img)
@@ -234,6 +251,7 @@ class Show_list_results_single(object):
         self.tree = ttk.Treeview(self.wd_res, columns=self.columns, show='headings')
         self.tree_as = ttk.Treeview(self.wd_res, columns=self.columns, show='headings')
         self.res_note(text)
+        self.settings_note(stats)
         self.tree_generate()
         self.tree.bind('<Double-Button-1>', self.double)
         self.wd_res.mainloop()
@@ -250,7 +268,7 @@ class Show_list_results_group(Show_list_results_single):
         game_win = Show_list_results_single(self.res[line_number][1],
                                             self.columns[1:], 'regular' if self.RP == 0 else 'playoff')
         game_win.title('%s每场详细数据' % self.res[line_number][0])
-        game_win.loop('')
+        game_win.loop('共查询到%d条记录' % (len(self.res[line_number][1]) - 2), self.stats)
 
     def insert_table(self, tr, tb):
         for i in self.columns:  # 定义各列列宽及对齐方式
@@ -356,21 +374,21 @@ class Search_by_plyr(object):
 
     def search(self):  # 点击按钮触发搜索函数
         if self.stats_setting:
-            set = {}
+            stats = {}
             for k in self.stats_setting.keys():  # 遍历文本框控件，收集查询条件
                 ent_s = self.stats_setting[k]
                 if len(ent_s) == 1:
                     if ent_s[0].get():
-                        set[k] = [-1, [ent_s[0].get()]]  # 相等比较，-1
+                        stats[k] = [-1, [ent_s[0].get()]]  # 相等比较，-1
                 else:
                     assert len(ent_s) == 2
                     if ent_s[0].get() and ent_s[1].get():  # 大于小于同时存在，2
-                        set[k] = [2, [ent_s[0].get(), ent_s[1].get()]]
+                        stats[k] = [2, [ent_s[0].get(), ent_s[1].get()]]
                     elif ent_s[0].get() and not ent_s[1].get():  # 只有大于，0
-                        set[k] = [0, [ent_s[0].get()]]
+                        stats[k] = [0, [ent_s[0].get()]]
                     elif not ent_s[0].get() and ent_s[1].get():  # 只有小于，1
-                        set[k] = [1, [ent_s[1].get()]]
-            if not set:
+                        stats[k] = [1, [ent_s[1].get()]]
+            if not stats:
                 messagebox.showinfo('提示', '请设置查询条件！')
             else:
                 if self.PON.get() == 'yes':    # 单球员查询
@@ -378,45 +396,44 @@ class Search_by_plyr(object):
                         messagebox.showinfo('提示', '球员姓名不存在！')
                         return
                     player = Player(self.pn2pm[self.plyr_ent_value.get()], self.ROP.get())
-                    res = player.searchGame(set)
+                    res = player.searchGame(stats)
                     # 处理结果
                     if res:
                         RP = regular_items_en if self.ROP.get() == 'regular' else playoff_items_en
                         result_window = Show_list_results_single(res, list(RP.keys()), self.ROP.get())
                         result_window.title('%s %s 查询结果' % (self.plyr_ent_value.get(), self.ROP_dict[self.ROP.get()]))
-                        result_window.loop(' 共查询到%d条记录' % (len(res) - 2))
+                        result_window.loop('共查询到%d条记录' % (len(res) - 2), stats)
                     else:
                         messagebox.showinfo('提示', '未查询到符合条件的数据！')
                 else:    # 按球员分组查询
                     # start = time.time()
-                    # pp = [[x, self.ROP.get(), set] for x in list(self.pm2pn.keys())]
+                    # pp = [[x, self.ROP.get(), stats] for x in list(self.pm2pn.keys())]
+                    # print(time.time() - start)
                     # pool = ThreadPool(4)
                     # tmp = pool.map(process, pp)
                     # pool.close()
                     # pool.join()
-                    # print(len(tmp))
-                    # ress = []
+                    # print(time.time() - start)
+                    # res = []
                     # for x in tmp:
                     #     if x:
-                    #         ress.append(tmp)
+                    #         res.append(x)
                     # print(time.time() - start)
                     start = time.time()
                     res = []
                     min_ = 50 if self.ROP.get() == 'regular' else 5
                     for p in tqdm(list(self.pm2pn.keys())):
-                        # print(p)
                         player = Player(p, self.ROP.get())
                         if player.exists and not isinstance(player.data, list) and player.games > min_:
-                            tmp = player.searchGame(set)
+                            tmp = player.searchGame(stats)
                             if tmp:
                                 res.append([self.pm2pn[p], tmp])
-                    # print(len(ress))
                     print(time.time() - start)
                     if res:
                         RP = regular_items_en if self.ROP.get() == 'regular' else playoff_items_en
                         result_window = Show_list_results_group(res, list(RP.keys()), self.ROP.get())
                         result_window.title('%s查询结果' % ('常规赛' if self.ROP.get() == 'regular' else '季后赛'))
-                        result_window.loop(' 共查询到%d个球员' % len(res))
+                        result_window.loop('共查询到%d个球员' % len(res), stats)
                     else:
                         messagebox.showinfo('提示', '未查询到符合条件的数据！')
                     return

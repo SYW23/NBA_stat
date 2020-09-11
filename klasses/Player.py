@@ -15,6 +15,7 @@ import math
 cmps = {-1: ['=='], 0: ['>='], 1: ['<='], 2: ['>=', '<=']}
 cmps_ = {-1: ['!='], 0: ['>='], 1: ['<='], 2: ['>=', '<=']}
 
+
 class Player(object):
     def __init__(self, pm, RoP, csv=False):  # 构造参数：球员唯一识别号，常规赛or季后赛('regular' or 'playoff')
         # print(pm)
@@ -119,7 +120,7 @@ class Player(object):
                 ave.append(sum_time.average(tmp.shape[0]))
                 sumn.append(sum_time.strtime[:-2])
             elif '%' in k:  # 命中率单独计算
-                if sumn[-2] >= 0 and sumn[-1] > 0:
+                if sumn[-2] and sumn[-1] and sumn[-2] >= 0 and int(sumn[-1]) > 0:
                     p = '%.3f' % (sumn[-2] / sumn[-1])
                     if p != '1.000':
                         p = p[1:]
