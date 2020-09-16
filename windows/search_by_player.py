@@ -23,25 +23,25 @@ def process(p):
     min_ = 50 if p[1] == 'regular' else 5
     # print(p)
     if player.exists and not isinstance(player.data, list) and player.games > min_:
-        res = player.searchGame(p[2])
+        res = player.search_by_game(p[2])
         if res:
             return res
 
 
 class Show_single_game(object):
-    def __init__(self, gm, ROP):
+    def __init__(self, gm, RoP):
         self.fontsize = 10
         self.col_w = 8
         self.bt_h = 2
         self.bt_w = 10
         self.paddingx = 5
         self.paddingy = 5
-        self.ROP = ROP
+        self.RoP = RoP
         self.gm = gm
         self.month = int(gm[4:6])
         self.season = int(gm[:4]) - 1 if self.month < 9 else int(gm[:4])
         game = LoadPickle('../data/seasons_boxscores/%d_%d/%s/%s_boxscores.pickle' %
-                          (self.season, self.season + 1, 'playoffs' if ROP else 'regular', gm))
+                          (self.season, self.season + 1, 'playoffs' if RoP else 'regular', gm))
         [self.roadteam, self.hometeam] = [x for x in game[0].keys()]
         self.res = game[0]
         self.tbs = game[1:]
@@ -149,7 +149,7 @@ class Show_list_results_single(object):
         self.paddingy = 10
         self.wd_res = Toplevel()
         self.wd_res.iconbitmap('../images/nbahalfcourt.ico')
-        self.wd_res.geometry('1500x800+200+100')
+        self.wd_res.geometry('1900x800+10+100')
         # self.wd_res.resizable(width=True, height=True)
         self.columns = columns
         self.res = res
@@ -171,7 +171,7 @@ class Show_list_results_single(object):
         self.stats = stats
         text = '查询条件：'
         for k in stats:
-            ch = en2ch[k]
+            ch = en2ch[k][0]
             tp = stats[k][0]
             if tp < 2:
                 text += '%s %s %s' % (ch, self.cmps[tp][0], stats[k][1][0])
@@ -187,6 +187,10 @@ class Show_list_results_single(object):
             ast_sort = np.array([int(x[0][3:-1]) for x in l])
         elif '场' in l[0][0]:
             ast_sort = np.array([int(x[0][:-3]) for x in l])
+        elif '/' in l[0][0] and '(' in l[0][0] and ')' in l[0][0]:    # 按胜率排序
+            ast_sort = np.array(
+                [int(x[0][:x[0].index('/')]) / (int(x[0][:x[0].index('/')]) +
+                                                int(x[0][x[0].index('/')+1:x[0].index(' ')])) for x in l])
         else:
             ast_sort = np.array([float(x[0]) if x[0] else float('nan') for x in l])
         out = np.argsort(ast_sort)
@@ -221,7 +225,8 @@ class Show_list_results_single(object):
             if isinstance(r[ix], str) and r[ix].count(':') == 2:
                 assert r[ix][-3:] == ':00'
                 r[ix] = r[ix][:-3]
-            r[ix] = '0' + r[ix] if isinstance(r[ix], str) and int(r[ix][:r[ix].index(':')]) < 10 else r[ix]
+            if isinstance(r[ix], str) and int(r[ix][:r[ix].index(':')]) < 10:
+                r[ix] = '0' + r[ix]
             for j in range(len(r)):
                 if isinstance(r[j], float) and math.isnan(r[j]):
                     r[j] = ''
@@ -258,9 +263,10 @@ class Show_list_results_single(object):
 
 
 class Show_list_results_group(Show_list_results_single):
-    def __init__(self, res, columns, RP):
+    def __init__(self, res, columns, RP, detail=True):
         super(Show_list_results_group, self).__init__(res, columns, RP)
         self.columns.insert(0, 'player')
+        self.detail = detail
 
     def double(self, event):
         line_number = int(self.tree.selection()[0][1:], 16) - 1
@@ -270,7 +276,7 @@ class Show_list_results_group(Show_list_results_single):
         game_win.title('%s每场详细数据' % self.res[line_number][0])
         game_win.loop('共查询到%d条记录' % (len(self.res[line_number][1]) - 2), self.stats)
 
-    def insert_table(self, tr, tb):
+    def insert_table(self, tr, tb, command=False, _as=False):
         for i in self.columns:  # 定义各列列宽及对齐方式
             if i in ['Date', 'WoL', 'Playoffs']:
                 tr.column(i, width=80, anchor='center')
@@ -280,11 +286,14 @@ class Show_list_results_group(Show_list_results_single):
                 tr.column(i, width=60, anchor='center')
             tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
         for i, r_ in enumerate(tb):  # 逐条插入数据
-            r = r_[1][-2]
+            r = r_[1][-2] if self.detail else r_[1]
             r[1] = r[1][:8]
-            if r[8].count(':') == 2:
-                assert r[8][-3:] == ':00'
-                r[8] = r[8][:-3]
+            ix = 8 if not self.RP else 9
+            if isinstance(r[ix], str) and r[ix].count(':') == 2:
+                assert r[ix][-3:] == ':00'
+                r[ix] = r[ix][:-3]
+            if isinstance(r[ix], str) and int(r[ix][:r[ix].index(':')]) < 10:
+                r[ix] = '0' + r[ix]
             for j in range(len(r)):
                 if isinstance(r[j], float) and math.isnan(r[j]):
                     r[j] = ''
@@ -311,63 +320,101 @@ class Search_by_plyr(object):
         self.paddingy = 8
         self.pm2pn = LoadPickle('../data/playermark2playername.pickle')
         self.pn2pm = dict(zip(self.pm2pn.values(), self.pm2pn.keys()))
-        self.ROP_dict = {'regular': '常规赛', 'playoff': '季后赛'}
+        self.RoP_dict = {'regular': '常规赛', 'playoff': '季后赛'}
         self.wd_ = Tk()
         self.wd_.title('球员数据查询器')
         self.wd_.iconbitmap('../images/nbahalfcourt.ico')
         # wd.resizable(width=True, height=True)
         self.wd_.geometry('+500+20')
-        self.stats_setting = {}
+        self.stats_setting = {}    # 保存查询条件设置
         self.plyr_ent_value = StringVar()
         self.plyr_ent_value.set('LeBron James')
-        self.ROP = StringVar()
-        self.ROP.set(None)
+        self.RoP = StringVar()
+        self.RoP.set(None)
+        self.AoS = StringVar()
+        self.AoS.set(None)
+        self.scope = StringVar()
         self.PON = StringVar()
         self.PON.set('yes')
         self.wd = Frame(self.wd_)
         self.wd.grid()
         self.wd_.bind("<Return>", self.search_enter)
+        self.plyr = None
         self.plyr_ent = None
-        self.grid_posi = {'G': [15, 0], 'Date': [15, 1], 'Age': [16, 0], 'Tm': [1, 0], 'RoH': [1, 1],
-                          'Opp': [2, 0], 'WoL': [2, 1], 'GS': [3, 0], 'Series': [3, 1], 'MP': [4, 1],
-                          'FG': [9, 0], 'FGA': [9, 1], 'FG%': [10, 0], '3P': [11, 0],
-                          '3PA': [11, 1], '3P%': [12, 0], 'FT': [13, 0], 'Playoffs': [15, 1],
-                          'FTA': [13, 1], 'FT%': [14, 0], 'ORB': [6, 0], 'DRB': [6, 1],
-                          'TRB': [5, 0], 'AST': [5, 1], 'STL': [7, 0], 'BLK': [7, 1], 'TOV': [8, 0],
-                          'PF': [8, 1], 'PTS': [4, 0], 'GmSc': [16, 1], '+/-': [17, 0], 'G#': [16, 0]}
 
     def label(self, win, text, fs, w, h, ac):
         return Label(win, text=text, font=('SimHei', fs), width=w, height=h, anchor=ac)
 
-    def one_tick_sel(self, win, text, value, command, variable, w):
+    def one_tick_sel(self, win, text, value, w, variable, command):
         return Radiobutton(win, text=text, value=value, command=command,
                            variable=variable, width=w, height=1)
 
-    def place_stat(self, k, row, c):
-        self.label(self.wd, en2ch[k] + ':', self.fontsize,
-                   self.col_w, 1, 'e').grid(padx=self.paddingx, pady=self.paddingy, row=row, column=c)
-        if k not in ['Tm', 'RoH', 'Opp', 'WoL', 'GS', 'Series']:
-            ent1 = Entry(self.wd, width=10)
-            ent2 = Entry(self.wd, width=10)
-            self.label(self.wd, '-', self.fontsize, self.col_w // 3, 1,
-                       'center').grid(padx=self.paddingx // 2, pady=self.paddingy, row=row, column=c + 2)
-            ent1.grid(row=row, column=c + 1, padx=self.paddingx // 2, pady=self.paddingy)
-            ent2.grid(row=row, column=c + 3, padx=self.paddingx // 2, pady=self.paddingy)
-            self.stats_setting[k] = [ent1, ent2]
-        else:
-            ent = Entry(self.wd, width=20)
-            ent.grid(row=row, column=c + 1, columnspan=3, padx=self.paddingx // 2, pady=self.paddingy)
-            self.stats_setting[k] = [ent]
+    def place_sep(self, win, row, columnspan=12):    # 分割线
+        sep = ttk.Separator(win, orient='horizontal')
+        sep.grid(padx=3, pady=3, row=row, column=0, columnspan=columnspan, sticky='ew')
 
-    def ROPselection(self):
-        [i.grid_remove() for i in self.wd.grid_slaves()[:-9]]
-        ROP = regular_items_en if self.ROP.get() == 'regular' else playoff_items_en
-        self.stats_setting.clear()
-        [self.place_stat(k, self.grid_posi[k][0] + 2, self.grid_posi[k][1] * 4) for k in ROP]
-        self.place_stat('Diff', 19, 4)
+    def place_equal_inf(self, row):    # 信息数据Frame
+        equal_fm = Frame(self.wd)
+        equal_fm.grid(row=row, column=0, columnspan=12)
+        ls = ['Tm', 'Opp', 'GS', 'RoH', 'WoL'] if self.RoP.get() == 'regular'\
+            else ['Tm', 'Opp', 'GS', 'RoH', 'WoL', 'Series']
+        self.place_stat(equal_fm, ls, 'i // 3 + 1', 'i % 3 * 2', type=0)
+
+    def place_basic(self, row):    # 基础数据Frame
+        basic_fm = Frame(self.wd)
+        basic_fm.grid(row=row, column=0, columnspan=12)
+        ls = ['PTS', 'TRB', 'AST', 'BLK', 'STL', 'TOV', 'ORB', 'DRB', 'PF', 'MP', 'GmSc', '+/-']
+        self.place_stat(basic_fm, ls, 'i // 3 + 1', 'i % 3 * 4')
+
+    def place_shooting(self, row):    # 投篮数据Frame
+        shooting_fm = Frame(self.wd)
+        shooting_fm.grid(row=row, column=0, columnspan=12)
+        ls = ['FG', 'FGA', 'FG%', '3P', '3PA', '3P%', 'FT', 'FTA', 'FT%']
+        self.place_stat(shooting_fm, ls, 'i // 3 + 1', 'i % 3 * 4')
+
+    def place_inf(self, row):    # 信息比较数据Frame
+        inf_fm = Frame(self.wd)
+        inf_fm.grid(row=row, column=0, columnspan=12)
+        ls = ['G', 'Date', 'Age', 'Diff'] if self.RoP.get() == 'regular'\
+            else ['G', 'G#', 'Age', 'Diff']
+        self.place_stat(inf_fm, ls, 'i // 2 + 1', 'i % 2 * 4')
+
+    def place_stat(self, win, ls, row_, col_, type=1):    # type 1:大于小于 0:等于
+        # ==============查询条件输入框布局====================
+        for i, k in enumerate(ls):
+            row, col = eval(row_), eval(col_)
+            if type:
+                self.label(win, en2ch[k][0] + ':', self.fontsize,
+                           self.col_w, 1, 'e').grid(padx=self.paddingx, pady=self.paddingy, row=row, column=col)
+                ent1, ent2 = Entry(win, width=10), Entry(win, width=10)
+                self.label(win, '-', self.fontsize, self.col_w // 3, 1,
+                           'center').grid(padx=self.paddingx // 2, pady=self.paddingy, row=row, column=col + 2)
+                ent1.grid(row=row, column=col + 1, padx=self.paddingx // 2, pady=self.paddingy)
+                ent2.grid(row=row, column=col + 3, padx=self.paddingx // 2, pady=self.paddingy)
+                self.stats_setting[k] = [ent1, ent2]
+            else:
+                self.label(win, en2ch[k][0] + ':', self.fontsize,
+                           12, 1, 'center').grid(padx=self.paddingx, pady=self.paddingy, row=row, column=col)
+                ent = Entry(win, width=10)
+                ent.grid(row=row, column=col + 1, padx=self.paddingx, pady=self.paddingy)
+            self.stats_setting[k] = eval('[ent1, ent2]') if type else eval('[ent]')
+
+    def RoPselection(self):
+        [i.grid_remove() for i in self.wd.grid_slaves()[:-10]]
+        self.place_equal_inf(3)
+        self.place_sep(self.wd, 4)
+        self.place_basic(5)
+        self.place_sep(self.wd, 6)
+        self.place_shooting(7)
+        self.place_sep(self.wd, 8)
+        self.place_inf(9)
+
+    def AoSselection(self):
+        pass
 
     def plyr_or_not(self):    # 是否按球员分组
-        self.plyr_ent['state'] = 'disabled' if self.PON.get() == 'no' else 'normal'
+        self.plyr['text'] = '最小出场数' if self.PON.get() == 'no' else '球员'
+        self.plyr_ent_value.set('5') if self.PON.get() == 'no' else self.plyr_ent_value.set('LeBron James')
 
     def search_enter(self, event):  # 绑定回车键触发搜索函数
         self.search()
@@ -391,23 +438,26 @@ class Search_by_plyr(object):
             if not stats:
                 messagebox.showinfo('提示', '请设置查询条件！')
             else:
-                if self.PON.get() == 'yes':    # 单球员查询
+                if self.PON.get() == 'yes':  # 单球员查询
                     if self.plyr_ent_value.get() not in self.pn2pm.keys():
                         messagebox.showinfo('提示', '球员姓名不存在！')
                         return
-                    player = Player(self.pn2pm[self.plyr_ent_value.get()], self.ROP.get())
-                    res = player.searchGame(stats)
-                    # 处理结果
-                    if res:
-                        RP = regular_items_en if self.ROP.get() == 'regular' else playoff_items_en
-                        result_window = Show_list_results_single(res, list(RP.keys()), self.ROP.get())
-                        result_window.title('%s %s 查询结果' % (self.plyr_ent_value.get(), self.ROP_dict[self.ROP.get()]))
-                        result_window.loop('共查询到%d条记录' % (len(res) - 2), stats)
-                    else:
-                        messagebox.showinfo('提示', '未查询到符合条件的数据！')
+                    player = Player(self.pn2pm[self.plyr_ent_value.get()], self.RoP.get())
+                    if self.scope.get() == '单场比赛':
+                        pt = 1
+                        res = player.search_by_game(stats)
+                    elif self.scope.get() == '赛季':
+                        pt = 0
+                        res = player.search_by_season(stats)
+                        res = [[self.plyr_ent_value.get(), x] for x in res]
+                    elif self.scope.get() == '职业生涯':
+                        pt = 0
+                        res = player.search_by_career(stats)
+                        res = [[self.plyr_ent_value.get(), x] for x in res]
                 else:    # 按球员分组查询
+                    pt = 0
                     # start = time.time()
-                    # pp = [[x, self.ROP.get(), stats] for x in list(self.pm2pn.keys())]
+                    # pp = [[x, self.RoP.get(), stats] for x in list(self.pm2pn.keys())]
                     # print(time.time() - start)
                     # pool = ThreadPool(4)
                     # tmp = pool.map(process, pp)
@@ -421,28 +471,44 @@ class Search_by_plyr(object):
                     # print(time.time() - start)
                     start = time.time()
                     res = []
-                    min_ = 50 if self.ROP.get() == 'regular' else 5
+                    min_ = 50 if self.RoP.get() == 'regular' else 5
                     for p in tqdm(list(self.pm2pn.keys())):
-                        player = Player(p, self.ROP.get())
+                        player = Player(p, self.RoP.get())
                         if player.exists and not isinstance(player.data, list) and player.games > min_:
-                            tmp = player.searchGame(stats)
-                            if tmp:
-                                res.append([self.pm2pn[p], tmp])
+                            if self.scope.get() == '单场比赛':
+                                tmp = player.search_by_game(stats, minG=int(self.plyr_ent_value.get()))
+                                if tmp:
+                                    res.append([self.pm2pn[p], tmp])
+                            elif self.scope.get() == '赛季':
+                                tmp = player.search_by_season(stats)
+                                if tmp:
+                                    tmp = [[self.pm2pn[p], x] for x in tmp]
+                                    res += tmp
+                            elif self.scope.get() == '职业生涯':
+                                tmp = player.search_by_career(stats)
+                                if tmp:
+                                    tmp = [[self.pm2pn[p], x] for x in tmp]
+                                    res += tmp
                     print(time.time() - start)
-                    if res:
-                        RP = regular_items_en if self.ROP.get() == 'regular' else playoff_items_en
-                        result_window = Show_list_results_group(res, list(RP.keys()), self.ROP.get())
-                        result_window.title('%s查询结果' % ('常规赛' if self.ROP.get() == 'regular' else '季后赛'))
-                        result_window.loop('共查询到%d个球员' % len(res), stats)
-                    else:
-                        messagebox.showinfo('提示', '未查询到符合条件的数据！')
-                    return
+                # 处理结果
+                if res:
+                    RP = regular_items_en if self.RoP.get() == 'regular' else playoff_items_en
+                    win_klass = Show_list_results_single if pt else Show_list_results_group
+                    result_window = win_klass(res, list(RP.keys()), self.RoP.get()) if pt\
+                        else win_klass(res, list(RP.keys()), self.RoP.get(), detail=True if pt else False)
+                    win_title = '%s %s 查询结果（按%s）' % (self.plyr_ent_value.get(),
+                                                     self.RoP_dict[self.RoP.get()], self.scope.get())\
+                        if pt else '%s查询结果（按%s）' % ('常规赛' if self.RoP.get() == 'regular' else '季后赛', self.scope.get())
+                    result_window.title(win_title)
+                    result_window.loop('共查询到%d组数据' % (len(res) - 2 * pt), stats)
+                else:
+                    messagebox.showinfo('提示', '未查询到符合条件的数据！')
         else:
             messagebox.showinfo('提示', '请选择比赛类型！')
 
     def loop(self):
-        # 背景图片
-        bg_img = Image.open('../images/wade&james.jpg')
+        # ==============背景图片====================
+        bg_img = Image.open('../images/james.jpg')
         bg_img = bg_img.resize((int(bg_img.size[0] * 0.95), int(bg_img.size[1] * 0.95)))
         bg_img = cv2.cvtColor(np.asarray(bg_img), cv2.COLOR_RGB2BGR)
         bg_img = cv2.copyMakeBorder(bg_img, 0, 0, 100, 100, cv2.BORDER_REFLECT_101)
@@ -450,41 +516,55 @@ class Search_by_plyr(object):
         bg_img.putalpha(32)  # 透明度
         bg_img = ImageTk.PhotoImage(bg_img)
         Label(self.wd, image=bg_img).place(x=0, y=0, relwidth=1, relheight=1)
-        # 控件设置
-        plyr_fm = Frame(self.wd, height=1)
-        plyr_yes = self.one_tick_sel(plyr_fm, '单球员查询', 'yes', self.plyr_or_not, self.PON, self.radiobutton_w * 2)
-        plyr_no = self.one_tick_sel(plyr_fm, '按球员分组', 'no', self.plyr_or_not, self.PON, self.radiobutton_w * 2)
-        plyr = self.label(self.wd, '球员:', self.fontsize, self.col_w, 1, 'e')
+        # ==============球员名称label&entry====================
+        self.plyr = self.label(self.wd, '球员:', self.fontsize, self.col_w, 1, 'e')
         self.plyr_ent = Entry(self.wd, width=20, textvariable=self.plyr_ent_value, font=('SimHei', 15))
-        rglr_sel = self.one_tick_sel(self.wd, '常规赛', 'regular', self.ROPselection, self.ROP, self.radiobutton_w)
-        plyf_sel = self.one_tick_sel(self.wd, '季后赛', 'playoff', self.ROPselection, self.ROP, self.radiobutton_w)
-        search_img = Image.open('../images/kobe_dunk.jpg')
-        search_img = ImageTk.PhotoImage(search_img)
-        search_button = Button(self.wd, text='查  询', width=65, height=30, image=search_img,
-                               compound='center', cursor='hand2', command=self.search, font=('SimHei', 14))
-        sep = ttk.Separator(self.wd, orient='horizontal')  # 分割线
-        notion = self.label(self.wd, '说明:', self.fontsize, self.col_w, 1, 'e')
-        help_note = '主客场：0客1主\n比赛序号：赛季第n场比赛\n' \
-                    '年龄：35-001    赛果：W/L    日期：%s\n' \
-                    '季后赛轮次：E/WC1->第一轮，E/WCS->分区半决赛，\n' \
-                    '            E/WCF->分区决赛，FIN->总决赛' % time.strftime("%Y%m%d")
-        notion_ = Label(self.wd, text=help_note, font=('SimHei', 11),
-                        width=self.col_w * 5, height=6, anchor='w', justify='left')
-        # 控件布局
-        plyr_fm.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=0, columnspan=4)
+        self.plyr.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=0)
+        self.plyr_ent.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=1, columnspan=3)
+        # ==============单球员or多球员单选Frame====================
+        plyr_fm = Frame(self.wd, height=1)
+        plyr_yes = self.one_tick_sel(plyr_fm, '单球员查询', 'yes', self.radiobutton_w * 2, self.PON, self.plyr_or_not)
+        plyr_no = self.one_tick_sel(plyr_fm, '按球员分组', 'no', self.radiobutton_w * 2, self.PON, self.plyr_or_not)
+        plyr_fm.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=4, columnspan=3)
         plyr_yes.grid(row=1, column=0)
         plyr_no.grid(row=1, column=1)
-        plyr.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=0)
-        self.plyr_ent.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=1, columnspan=3)
-        rglr_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=4)
-        plyf_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4)
-        search_button.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=5, columnspan=3)
-        sep.grid(row=20, column=0, columnspan=8, sticky='ew')
+        # ==============比赛类型组合选择Frame====================
+        gametype_fm = Frame(self.wd)
+        rglr_sel = self.one_tick_sel(gametype_fm, '常规赛', 'regular', self.radiobutton_w, self.RoP, self.RoPselection)
+        plyf_sel = self.one_tick_sel(gametype_fm, '季后赛', 'playoff', self.radiobutton_w, self.RoP, self.RoPselection)
+        scope_sel = ttk.Combobox(gametype_fm, width=7, textvariable=self.scope)
+        scope_sel['value'] = ['单场比赛', '赛季', '职业生涯', '连续比赛', '连续赛季']
+        scope_sel.current(0)
+        ave_sel = self.one_tick_sel(gametype_fm, '场均', 'ave', 2, self.AoS, self.AoSselection)
+        sum_sel = self.one_tick_sel(gametype_fm, '总和', 'sum', 2, self.AoS, self.AoSselection)
+        self.AoS.set('ave')
+        self.place_sep(gametype_fm, 2, columnspan=2)
+        gametype_fm.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=7, columnspan=4)
+        rglr_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=0)
+        plyf_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=1)
+        scope_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=3, column=2, columnspan=2)
+        ave_sel.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=0, sticky='e')
+        sum_sel.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=1, sticky='w')
+        # ==============搜索button====================
+        search_img = Image.open('../images/kobe_dunk.jpg')
+        search_img = ImageTk.PhotoImage(search_img)
+        search_button = Button(self.wd, text='查  询', width=60, height=30, image=search_img,
+                               compound='center', cursor='hand2', command=self.search, font=('SimHei', 14))
+        search_button.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=11)
+        # ==============说明label====================
+        self.place_sep(self.wd, 20)
+        notion = self.label(self.wd, '说明:', self.fontsize, self.col_w, 1, 'e')
+        help_note = '主客场：0客1主    比赛序号：赛季第n场比赛\n' \
+                    '年龄：35-001    赛果：W/L    日期：%s\n' \
+                    '季后赛轮次：E/WC1->第一轮，E/WCS->分区半决赛，' \
+                    'E/WCF->分区决赛，FIN->总决赛' % time.strftime("%Y%m%d")
+        notion_ = Label(self.wd, text=help_note, font=('SimHei', 11),
+                        width=self.col_w * 5, height=6, anchor='w', justify='left')
         notion.grid(padx=self.paddingx, pady=self.paddingy, row=26, column=0)
-        notion_.grid(padx=self.paddingx, pady=self.paddingy, row=26, rowspan=6, column=1, columnspan=7)
+        notion_.grid(padx=self.paddingx, pady=self.paddingy, row=26, rowspan=6, column=1, columnspan=11, sticky='w')
         # wd.attributes("-alpha", 0.8)
-        # self.ROP.set('regular')
-        # self.ROPselection()
+        self.RoP.set('regular')
+        self.RoPselection()
         self.wd.mainloop()
 
 

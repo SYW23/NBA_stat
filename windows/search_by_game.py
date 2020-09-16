@@ -35,6 +35,7 @@ class Search_by_game(object):
         self.ROP.set(None)
         self.qtr = StringVar()
         self.qtr.set('whole')
+        self.sels = []
         self.wd = Frame(self.wd_)
         self.wd.grid()
         self.wd_.bind("<Return>", self.search_enter)
@@ -45,13 +46,15 @@ class Search_by_game(object):
                            variable=self.qtr, width=self.radiobutton_w, height=1)
 
     def season_cbox_sel(self, event):
-        print(self.radioframe.grid_slaves())
-        if self.season.get()[:4] < '1996':
-            messagebox.showinfo('提示', '1996-97赛季前没有分节技术统计！')
-            [i.grid_remove() for i in self.radioframe.grid_slaves()[:-2]]
-        if self.season.get()[:4] < '1983':
-            messagebox.showinfo('提示', '1983-84赛季前没有进阶技术统计！')
-            [i.grid_remove() for i in self.radioframe.grid_slaves()[:-1]]
+        [i.grid_remove() for i in self.radioframe.grid_slaves()]
+        if self.season.get()[:4] >= '1996':
+            end = 8
+        elif self.season.get()[:4] < '1983':
+            end = 1
+        else:
+            end = 2
+        for ix, i in enumerate(self.sels[:end]):
+            i.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=ix)
 
     def search_enter(self, event):    # 绑定回车键触发搜索函数
         self.search()
@@ -95,14 +98,10 @@ class Search_by_game(object):
         oppteam_label = Label(self.wd, text='对手球队:', font=self.font, width=self.col_w, height=1, anchor='e')
         team_ent = Entry(self.wd, width=10)
         oppteam_ent = Entry(self.wd, width=10)
-        whole_sel = self.one_tick_sel('全场', 'whole', self.QTRselection, self.radioframe)
-        advcd_sel = self.one_tick_sel('进阶', 'advcd', self.QTRselection, self.radioframe)
-        first_sel = self.one_tick_sel('第一节', '1st', self.QTRselection, self.radioframe)
-        secnd_sel = self.one_tick_sel('第二节', '2nd', self.QTRselection, self.radioframe)
-        fsthf_sel = self.one_tick_sel('上半场', '1hf', self.QTRselection, self.radioframe)
-        third_sel = self.one_tick_sel('第三节', '3rd', self.QTRselection, self.radioframe)
-        forth_sel = self.one_tick_sel('第四节', '4th', self.QTRselection, self.radioframe)
-        sndhf_sel = self.one_tick_sel('下半场', '2hf', self.QTRselection, self.radioframe)
+        sel_texts = [['全场', 'whole'], ['进阶', 'advcd'], ['第一节', '1st'], ['第二节', '2nd'],
+                     ['上半场', '1hf'], ['第三节', '3rd'], ['第四节', '4th'], ['下半场', '2hf']]
+        for ts in sel_texts:
+            self.sels.append(self.one_tick_sel(ts[0], ts[1], self.QTRselection, self.radioframe))
 
         # 控件布局
         season_label.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=0)
@@ -119,14 +118,14 @@ class Search_by_game(object):
         oppteam_label.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=2)
         team_ent.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=1)
         oppteam_ent.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=3)
-        whole_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=2, sticky='ew')
-        advcd_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=3, sticky='ew')
-        first_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=0, sticky='ew')
-        secnd_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=1, sticky='ew')
-        fsthf_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=2, sticky='ew')
-        third_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=3, sticky='ew')
-        forth_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4, sticky='ew')
-        sndhf_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=5, sticky='ew')
+        # whole_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=2, sticky='ew')
+        # advcd_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=3, sticky='ew')
+        # first_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=0, sticky='ew')
+        # secnd_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=1, sticky='ew')
+        # fsthf_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=2, sticky='ew')
+        # third_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=3, sticky='ew')
+        # forth_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4, sticky='ew')
+        # sndhf_sel.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=5, sticky='ew')
         self.wd.mainloop()
 
 

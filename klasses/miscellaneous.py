@@ -60,6 +60,7 @@ class WinLoseCounter(object):
         return self
 
     def average(self):
+        # print(self.diff, self.counter)
         diff_ave = self.diff / self.counter
         return '%d/%d (' % (self.wl[0], self.wl[1]) +\
                ('+%.1f)' % diff_ave if diff_ave > 0 else '%.1f)' % diff_ave)
