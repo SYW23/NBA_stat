@@ -9,7 +9,7 @@ from tkinter import ttk
 from tkinter import messagebox
 from PIL import Image, ImageTk
 from util import LoadPickle
-from search_by_player import Show_list_results_single
+from search_by_player import ShowSingleResults
 
 
 class Search_by_game(object):

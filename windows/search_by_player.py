@@ -9,309 +9,16 @@ from tkinter import messagebox
 from PIL import Image, ImageTk
 import cv2
 import numpy as np
-import math
 import time
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 from util import LoadPickle
 from klasses.stats_items import *
 from klasses.Player import Player
+from result_windows import ShowSingleGame, ShowResults, ShowSingleResults, ShowGroupResults
 
 
-def process(p):
-    player = Player(p[0], p[1])
-    min_ = 50 if p[1] == 'regular' else 5
-    # print(p)
-    if player.exists and not isinstance(player.data, list) and player.games > min_:
-        res = player.search_by_game(p[2])
-        if res:
-            return res
-
-
-class Show_single_game(object):
-    def __init__(self, gm, RoP):
-        self.fontsize = 10
-        self.col_w = 8
-        self.bt_h = 2
-        self.bt_w = 10
-        self.paddingx = 5
-        self.paddingy = 5
-        self.RoP = RoP
-        self.gm = gm
-        self.month = int(gm[4:6])
-        self.season = int(gm[:4]) - 1 if self.month < 9 else int(gm[:4])
-        game = LoadPickle('../data/seasons_boxscores/%d_%d/%s/%s_boxscores.pickle' %
-                          (self.season, self.season + 1, 'playoffs' if RoP else 'regular', gm))
-        [self.roadteam, self.hometeam] = [x for x in game[0].keys()]
-        self.res = game[0]
-        self.tbs = game[1:]
-        self.columns = None
-        self.wd_gm = Toplevel()
-        self.wd_gm.iconbitmap('../images/nbahalfcourt.ico')
-        self.wd_gm.geometry('+250+100')
-        self.frame_btn = None
-        self.trees = []    # 存放主客队各一个数据表格
-        self.ts = 0
-        self.pm2pn = LoadPickle('../data/playermark2playername.pickle')
-
-    def button(self, text, n):
-        return Button(self.frame_btn, text=text, width=self.bt_w, height=self.bt_h, compound='center',
-                      cursor='hand2', command=lambda: self.span(n), font=('SimHei', self.fontsize))
-
-    def label(self, text, fontsize):
-        return Label(self.wd_gm, text=text, font=('SimHei', fontsize), width=self.col_w, height=1, anchor='center')
-
-    def insert_tree(self, ll, tr):
-        for i, r in enumerate(ll):
-            tmp = r * 1
-            if r[0] != 'Team Totals':
-                tmp[0] = self.pm2pn[tmp[0]]
-            tr.insert('', i, values=tuple(tmp)) if len(r) > 2 else tr.insert('', i, values=tuple(tmp[:1]))
-
-    def tree_generate(self):
-        self.columns = self.tbs[0][0][0]
-        for ind, tr in enumerate(self.trees):
-            for i in self.tbs[self.ts][ind][0]:
-                tr.column(i, width=150, anchor='center') if i == 'players' else tr.column(i, width=60, anchor='center')
-                tr.heading(i, text=i)
-            self.insert_tree(self.tbs[self.ts][ind][1:], tr)    # 逐条插入数据
-        for ind, i in enumerate(self.trees):    # 滚动条与布局
-            scrollbary = Scrollbar(self.wd_gm, orient='vertical', command=i.yview)
-            i.configure(yscrollcommand=scrollbary.set)
-            i.grid(padx=self.paddingx, pady=self.paddingy, row=ind * 2 + 5, column=0, columnspan=5)
-            scrollbary.grid(padx=self.paddingx, pady=self.paddingy, row=ind * 2 + 5, column=5, sticky='ns')
-
-    def span(self, n):
-        if self.ts != n:
-            # 删除原表中数据
-            for i in self.trees:
-                items = i.get_children()
-                [i.delete(item) for item in items]
-            # 更改表头
-            if n == 1 or self.ts == 1:
-                for ind, tr in enumerate(self.trees):
-                    for ind_c, i in enumerate(self.tbs[n][ind][0]):
-                        tr.heading(self.columns[ind_c], text=i)
-                    if n == 1:
-                        [tr.heading(self.columns[j], text='') for j in range(ind_c + 1, len(self.columns))]    # advanced表“删除”多余的四列
-
-            # 重新插入数据
-            for ind, tr in enumerate(self.trees):
-                if n > 1:    # 总计行
-                    self.insert_tree(self.tbs[0][ind][-1:], tr)
-                self.insert_tree(self.tbs[n][ind][1:], tr)
-            self.ts = n
-
-    def loop(self):
-        gmbg_img = Image.open("../images/james.jpg")
-        gmbg_img.putalpha(64)
-        gmbg_img = ImageTk.PhotoImage(gmbg_img)
-        Label(self.wd_gm, image=gmbg_img).place(x=0, y=0, relwidth=1, relheight=1)
-        self.frame_btn = Frame(self.wd_gm)
-        self.frame_btn.grid(padx=self.paddingx, pady=self.paddingy, row=3, column=0, columnspan=5)
-        # 控件设置
-        rt = self.label(self.roadteam, self.fontsize * 2)
-        ht = self.label(self.hometeam, self.fontsize * 2)
-        rt_sr = self.label(self.res[self.roadteam][0], self.fontsize * 2)
-        ht_sr = self.label(self.res[self.hometeam][0], self.fontsize * 2)
-        to = self.label('vs', self.fontsize)
-        rt_wl = self.label('(%s)' % self.res[self.roadteam][1], self.fontsize)
-        ht_wl = self.label('(%s)' % self.res[self.hometeam][1], self.fontsize)
-        btns = []    # 8个按钮
-        btn_texts = ['全场', '进阶'] if self.season < 1996\
-               else ['全场', '进阶', '第一节', '第二节', '上半场', '第三节', '第四节', '下半场']
-        [btns.append(self.button(j, i)) for i, j in enumerate(btn_texts)]
-        rt_2 = self.label(self.roadteam, self.fontsize)
-        ht_2 = self.label(self.hometeam, self.fontsize)
-        # 控件布局
-        rt.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=0)
-        rt_sr.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=1)
-        to.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=2)
-        ht_sr.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=3)
-        ht.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=4)
-        rt_wl.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=0)
-        ht_wl.grid(padx=self.paddingx, pady=self.paddingy, row=2, column=4)
-        [j.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=i) for i, j in enumerate(btns)]
-        rt_2.grid(padx=self.paddingx, pady=self.paddingy, row=4, column=0, sticky='w')
-        ht_2.grid(padx=self.paddingx, pady=self.paddingy, row=6, column=0, sticky='w')
-        self.trees = [ttk.Treeview(self.wd_gm, columns=self.tbs[0][0][0], show='headings'),
-                      ttk.Treeview(self.wd_gm, columns=self.tbs[0][0][0], show='headings')]
-        self.tree_generate()
-        self.wd_gm.mainloop()
-
-
-class Show_list_results_single(object):
-    def __init__(self, res, columns, RP):
-        self.fontsize = 10
-        self.font = ('SimHei', self.fontsize)
-        self.col_w = 25
-        self.paddingx = 10
-        self.paddingy = 10
-        self.wd_res = Toplevel()
-        self.wd_res.iconbitmap('../images/nbahalfcourt.ico')
-        self.wd_res.geometry('1900x800+10+100')
-        # self.wd_res.resizable(width=True, height=True)
-        self.columns = columns
-        self.res = res
-        self.RP = 0 if RP == 'regular' else 1
-        self.tree = None
-        self.tree_as = None
-        self.dates = [x[1] for x in res]
-        self.stats = None
-        self.cmps = {-1: ['=='], 0: ['>='], 1: ['<=']}
-
-    def title(self, tt):  # 结果窗口标题
-        self.wd_res.title(tt)
-
-    def res_note(self, text):  # 结果说明（第一行）
-        Label(self.wd_res, text=text, font=self.font, anchor='w',
-              width=self.col_w, height=1).place(relx=0.02, rely=0.15, relwidth=0.2, relheight=0.03)
-
-    def settings_note(self, stats):    # 查询条件展示
-        self.stats = stats
-        text = '查询条件：'
-        for k in stats:
-            ch = en2ch[k][0]
-            tp = stats[k][0]
-            if tp < 2:
-                text += '%s %s %s' % (ch, self.cmps[tp][0], stats[k][1][0])
-            else:
-                text += '%s %s %s %s %s' % (stats[k][1][0], '<=', ch, '<=', stats[k][1][1])
-            text += '  '
-        Label(self.wd_res, text=text, font=self.font, anchor='w',
-              width=self.col_w, height=1).place(relx=0.221, rely=0.15, relwidth=0.42, relheight=0.03)
-
-    @staticmethod
-    def special_sorting(l, reverse):
-        if 'W' in l[0][0] or 'L' in l[0][0]:
-            ast_sort = np.array([int(x[0][3:-1]) for x in l])
-        elif '场' in l[0][0]:
-            ast_sort = np.array([int(x[0][:-3]) for x in l])
-        elif '/' in l[0][0] and '(' in l[0][0] and ')' in l[0][0]:    # 按胜率排序
-            ast_sort = np.array(
-                [int(x[0][:x[0].index('/')]) / (int(x[0][:x[0].index('/')]) +
-                                                int(x[0][x[0].index('/')+1:x[0].index(' ')])) for x in l])
-        else:
-            ast_sort = np.array([float(x[0]) if x[0] else float('nan') for x in l])
-        out = np.argsort(ast_sort)
-        if reverse:
-            out = out[::-1]
-        return [l[x] for x in out]
-
-    def sort_column(self, col, reverse):  # 点击列名排列
-        l = [[self.tree.set(k, col), k] for k in self.tree.get_children('')]  # 取出所选列中每行的值
-        # print(l)
-        if l[0][0].isdigit() or l[0][0] == '' or '.' in l[0][0]\
-                or l[0][0][0] == '-' or l[0][0][0] == 'L' or '+' in l[0][0]\
-                or '场' in l[0][0]:
-            l = self.special_sorting(l, reverse)  # 特殊排序
-        else:
-            l.sort(reverse=reverse)  # 排序方式
-        [self.tree.move(k, '', index) for index, [_, k] in enumerate(l)]  # 根据排序后的索引移动
-        self.tree.heading(col, command=lambda: self.sort_column(col, not reverse))  # 重写标题，使之成为再点倒序的标题
-
-    def double(self, event):
-        gm = self.dates[int(self.tree.selection()[0][1:], 16) - 1]
-        game_win = Show_single_game(gm, self.RP)
-        game_win.loop()
-
-    def insert_table(self, tr, tb, command=False, _as=False):
-        for i in self.columns:    # 定义各列列宽及对齐方式
-            tr.column(i, width=80, anchor='center') if i in ['Date', 'WoL', 'Playoffs'] else tr.column(i, width=60, anchor='center')
-            tr.heading(i, text=i) if not command else tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
-        for i, r in enumerate(tb):    # 逐条插入数据
-            r[1] = r[1][:8]
-            ix = 8 if not self.RP else 9
-            if isinstance(r[ix], str) and r[ix].count(':') == 2:
-                assert r[ix][-3:] == ':00'
-                r[ix] = r[ix][:-3]
-            if isinstance(r[ix], str) and int(r[ix][:r[ix].index(':')]) < 10:
-                r[ix] = '0' + r[ix]
-            for j in range(len(r)):
-                if isinstance(r[j], float) and math.isnan(r[j]):
-                    r[j] = ''
-            tr.insert('', i, text=str(i), values=tuple(r))
-
-    def tree_generate(self):
-        self.insert_table(self.tree, self.res[:-2], command=True)    # 结果罗列表
-        scrollbarx = Scrollbar(self.wd_res, orient='horizontal', command=self.tree.xview)    # 滚动条
-        self.tree.configure(xscrollcommand=scrollbarx.set)
-        scrollbary = Scrollbar(self.wd_res, orient='vertical', command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbary.set)
-        scrollbarx.place(relx=0.005, rely=0.84, relwidth=0.97, relheight=0.03)    # 布局
-        scrollbary.place(relx=0.98, rely=0.20, relwidth=0.015, relheight=0.65)
-        self.tree.place(relx=0.005, rely=0.20, relwidth=0.97, relheight=0.65)
-
-        self.insert_table(self.tree_as, self.res[-2:], _as=True)    # 平均&总和表
-        scrollbarx_as = Scrollbar(self.wd_res, orient='horizontal', command=self.tree_as.xview)
-        self.tree_as.configure(xscrollcommand=scrollbarx_as.set)
-        scrollbarx_as.place(relx=0.005, rely=0.97, relwidth=0.97, relheight=0.03)
-        self.tree_as.place(relx=0.005, rely=0.87, relwidth=0.97, relheight=0.13)
-
-    def loop(self, text, stats):  # 参数：结果说明文字
-        resbg_img = Image.open("../images/kobe_bg.jpg")
-        resbg_img.putalpha(64)
-        resbg_img = ImageTk.PhotoImage(resbg_img)
-        Label(self.wd_res, image=resbg_img).place(x=0, y=0, relwidth=1, relheight=1)
-        self.tree = ttk.Treeview(self.wd_res, columns=self.columns, show='headings')
-        self.tree_as = ttk.Treeview(self.wd_res, columns=self.columns, show='headings')
-        self.res_note(text)
-        self.settings_note(stats)
-        self.tree_generate()
-        self.tree.bind('<Double-Button-1>', self.double)
-        self.wd_res.mainloop()
-
-
-class Show_list_results_group(Show_list_results_single):
-    def __init__(self, res, columns, RP, detail=True):
-        super(Show_list_results_group, self).__init__(res, columns, RP)
-        self.columns.insert(0, 'player')
-        self.detail = detail
-
-    def double(self, event):
-        line_number = int(self.tree.selection()[0][1:], 16) - 1
-        # print(line_number)
-        game_win = Show_list_results_single(self.res[line_number][1],
-                                            self.columns[1:], 'regular' if self.RP == 0 else 'playoff')
-        game_win.title('%s每场详细数据' % self.res[line_number][0])
-        game_win.loop('共查询到%d条记录' % (len(self.res[line_number][1]) - 2), self.stats)
-
-    def insert_table(self, tr, tb, command=False, _as=False):
-        for i in self.columns:  # 定义各列列宽及对齐方式
-            if i in ['Date', 'WoL', 'Playoffs']:
-                tr.column(i, width=80, anchor='center')
-            elif i == 'player':
-                tr.column(i, width=150, anchor='center')
-            else:
-                tr.column(i, width=60, anchor='center')
-            tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, True))
-        for i, r_ in enumerate(tb):  # 逐条插入数据
-            r = r_[1][-2] if self.detail else r_[1]
-            r[1] = r[1][:8]
-            ix = 8 if not self.RP else 9
-            if isinstance(r[ix], str) and r[ix].count(':') == 2:
-                assert r[ix][-3:] == ':00'
-                r[ix] = r[ix][:-3]
-            if isinstance(r[ix], str) and int(r[ix][:r[ix].index(':')]) < 10:
-                r[ix] = '0' + r[ix]
-            for j in range(len(r)):
-                if isinstance(r[j], float) and math.isnan(r[j]):
-                    r[j] = ''
-            r = [r_[0]] + r
-            tr.insert('', i, text=str(i), values=tuple(r))
-
-    def tree_generate(self):
-        self.insert_table(self.tree, self.res)    # 结果罗列表
-        scrollbarx = Scrollbar(self.wd_res, orient='horizontal', command=self.tree.xview)    # 滚动条
-        self.tree.configure(xscrollcommand=scrollbarx.set)
-        scrollbary = Scrollbar(self.wd_res, orient='vertical', command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbary.set)
-        scrollbarx.place(relx=0.005, rely=0.97, relwidth=0.97, relheight=0.03)    # 布局
-        scrollbary.place(relx=0.98, rely=0.20, relwidth=0.015, relheight=0.76)
-        self.tree.place(relx=0.005, rely=0.20, relwidth=0.97, relheight=0.76)
-
-
-class Search_by_plyr(object):
+class searchByPlyr(object):
     def __init__(self):
         self.fontsize = 10
         self.col_w = 15
@@ -413,7 +120,7 @@ class Search_by_plyr(object):
         pass
 
     def plyr_or_not(self):    # 是否按球员分组
-        self.plyr['text'] = '最小出场数' if self.PON.get() == 'no' else '球员'
+        self.plyr['text'] = '最小场数' if self.PON.get() == 'no' else '球员'
         self.plyr_ent_value.set('5') if self.PON.get() == 'no' else self.plyr_ent_value.set('LeBron James')
 
     def search_enter(self, event):  # 绑定回车键触发搜索函数
@@ -447,11 +154,11 @@ class Search_by_plyr(object):
                         pt = 1
                         res = player.search_by_game(stats)
                     elif self.scope.get() == '赛季':
-                        pt = 0
+                        pt = 2
                         res = player.search_by_season(stats)
                         res = [[self.plyr_ent_value.get(), x] for x in res]
                     elif self.scope.get() == '职业生涯':
-                        pt = 0
+                        pt = 2
                         res = player.search_by_career(stats)
                         res = [[self.plyr_ent_value.get(), x] for x in res]
                 else:    # 按球员分组查询
@@ -480,11 +187,13 @@ class Search_by_plyr(object):
                                 if tmp:
                                     res.append([self.pm2pn[p], tmp])
                             elif self.scope.get() == '赛季':
+                                pt = 2
                                 tmp = player.search_by_season(stats)
                                 if tmp:
                                     tmp = [[self.pm2pn[p], x] for x in tmp]
                                     res += tmp
                             elif self.scope.get() == '职业生涯':
+                                pt = 2
                                 tmp = player.search_by_career(stats)
                                 if tmp:
                                     tmp = [[self.pm2pn[p], x] for x in tmp]
@@ -493,14 +202,16 @@ class Search_by_plyr(object):
                 # 处理结果
                 if res:
                     RP = regular_items_en if self.RoP.get() == 'regular' else playoff_items_en
-                    win_klass = Show_list_results_single if pt else Show_list_results_group
-                    result_window = win_klass(res, list(RP.keys()), self.RoP.get()) if pt\
-                        else win_klass(res, list(RP.keys()), self.RoP.get(), detail=True if pt else False)
+                    win_klass = ShowSingleResults if pt else ShowGroupResults
+                    if pt == 2:
+                        win_klass = ShowResults
+                    result_window = win_klass(res, list(RP.keys()), self.RoP.get(), detail=False if pt else True)
                     win_title = '%s %s 查询结果（按%s）' % (self.plyr_ent_value.get(),
                                                      self.RoP_dict[self.RoP.get()], self.scope.get())\
                         if pt else '%s查询结果（按%s）' % ('常规赛' if self.RoP.get() == 'regular' else '季后赛', self.scope.get())
                     result_window.title(win_title)
-                    result_window.loop('共查询到%d组数据' % (len(res) - 2 * pt), stats)
+                    num = (len(res) - 2 * pt) if pt != 2 else len(res)
+                    result_window.loop('共查询到%d组数据' % num, stats)
                 else:
                     messagebox.showinfo('提示', '未查询到符合条件的数据！')
         else:
@@ -569,5 +280,5 @@ class Search_by_plyr(object):
 
 
 if __name__ == '__main__':
-    search_by_player_window = Search_by_plyr()
+    search_by_player_window = searchByPlyr()
     search_by_player_window.loop()
