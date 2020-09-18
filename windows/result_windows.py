@@ -155,10 +155,11 @@ class ShowResults(object):
         if len(self.res[0]) == 2:
             self.columns.insert(0, 'Player')
             self.p = 1
-        self.widths = {'G': 60, 'Date': 80, 'Age': 60, 'Tm': 60, 'RoH': 60, 'Opp': 60, 'WoL': 80, 'GS': 60, 'MP': 60,
+        self.widths = {'G': 80, 'Date': 80, 'Age': 60, 'Tm': 60, 'RoH': 80 if self.p else 60, 'Opp': 60,
+                       'WoL': 100 if self.p else 80, 'GS': 80 if self.p else 60, 'MP': 60,
                        'FG': 60, 'FGA': 60, 'FG%': 60, '3P': 60, '3PA': 60, '3P%': 60, 'FT': 60, 'FTA': 60, 'FT%': 60,
                        'ORB': 60, 'DRB': 60, 'TRB': 60, 'AST': 60, 'STL': 60, 'BLK': 60, 'TOV': 60, 'PF': 60, 'PTS': 60,
-                       'GmSc': 60, '+/-': 60, 'Playoffs': 80, 'Series': 60, 'G#': 60, 'Player': 200 if self.p else 150}
+                       'GmSc': 60, '+/-': 60, 'Playoffs': 80, 'Series': 60, 'G#': 60, 'Player': 180}
 
     def title(self, tt):  # 结果窗口标题
         self.wd_res.title(tt)
@@ -170,9 +171,9 @@ class ShowResults(object):
         self.stats = stats
         text = '查询条件：'
         for k in stats:
-            ch, tp = en2ch[k][0], stats[k][0]
-            tmp = '%s %s %s  ' % (ch, self.cmps[tp][0], stats[k][1][0]) if tp < 2\
-                else '%s %s %s %s %s  ' % (stats[k][1][0], '<=', ch, '<=', stats[k][1][1])
+            ch, tp = en2ch[k][0], len(stats[k])
+            tmp = '%s%s  ' % (ch, stats[k][0][:-5]) if tp < 2\
+                else '%s %s %s %s %s  ' % (stats[k][0][4:-5], '<=', ch, '<=', stats[k][1][4:-5])
             text += tmp
         Label(self.wd_res, text=text, font=self.font, anchor='w', width=self.col_w, height=1).place(relx=0.221, rely=0.15, relwidth=0.42, relheight=0.03)
 

@@ -17,6 +17,8 @@ from klasses.stats_items import *
 from klasses.Player import Player
 from result_windows import ShowSingleGame, ShowResults, ShowSingleResults, ShowGroupResults
 
+cmps = {-1: ['=='], 0: ['>='], 1: ['<='], 2: ['>=', '<=']}
+
 
 class searchByPlyr(object):
     def __init__(self):
@@ -83,7 +85,7 @@ class searchByPlyr(object):
         inf_fm = Frame(self.wd)
         inf_fm.grid(row=row, column=0, columnspan=12)
         ls = ['G', 'Date', 'Age', 'Diff'] if self.RoP.get() == 'regular'\
-            else ['G', 'G#', 'Age', 'Diff']
+            else ['G', 'Playoffs', 'G#', 'Diff']
         self.place_stat(inf_fm, ls, 'i // 2 + 1', 'i % 2 * 4')
 
     def place_stat(self, win, ls, row_, col_, type=1):    # type 1:大于小于 0:等于
@@ -121,7 +123,7 @@ class searchByPlyr(object):
 
     def plyr_or_not(self):    # 是否按球员分组
         self.plyr['text'] = '最小场数' if self.PON.get() == 'no' else '球员'
-        self.plyr_ent_value.set('5') if self.PON.get() == 'no' else self.plyr_ent_value.set('LeBron James')
+        self.plyr_ent_value.set('1') if self.PON.get() == 'no' else self.plyr_ent_value.set('LeBron James')
 
     def search_enter(self, event):  # 绑定回车键触发搜索函数
         self.search()
@@ -130,18 +132,19 @@ class searchByPlyr(object):
         if self.stats_setting:
             stats = {}
             for k in self.stats_setting.keys():  # 遍历文本框控件，收集查询条件
+                tp = 1 if en2ch[k][1] == 1 or k == 'WoL' or k == 'MP' else 0
                 ent_s = self.stats_setting[k]
-                if len(ent_s) == 1:
+                if len(ent_s) == 1:    # 相等比较
                     if ent_s[0].get():
-                        stats[k] = [-1, [ent_s[0].get()]]  # 相等比较，-1
+                        stats[k] = [' == "%s" and ' % ent_s[0].get() if tp else ' == %s and ' % ent_s[0].get()]
                 else:
-                    assert len(ent_s) == 2
-                    if ent_s[0].get() and ent_s[1].get():  # 大于小于同时存在，2
-                        stats[k] = [2, [ent_s[0].get(), ent_s[1].get()]]
-                    elif ent_s[0].get() and not ent_s[1].get():  # 只有大于，0
-                        stats[k] = [0, [ent_s[0].get()]]
-                    elif not ent_s[0].get() and ent_s[1].get():  # 只有小于，1
-                        stats[k] = [1, [ent_s[1].get()]]
+                    if ent_s[0].get() and ent_s[1].get():  # 大于小于同时存在
+                        stats[k] = [' >= "%s" and ' % ent_s[0].get() if tp else ' >= %s and ' % ent_s[0].get(),
+                                    ' <= "%s" and ' % ent_s[1].get() if tp else ' <= %s and ' % ent_s[1].get()]
+                    elif ent_s[0].get() and not ent_s[1].get():  # 只有大于
+                        stats[k] = [' >= "%s" and ' % ent_s[0].get() if tp else ' >= %s and ' % ent_s[0].get()]
+                    elif not ent_s[0].get() and ent_s[1].get():  # 只有小于
+                        stats[k] = [' <= "%s" and ' % ent_s[1].get() if tp else ' <= %s and ' % ent_s[1].get()]
             if not stats:
                 messagebox.showinfo('提示', '请设置查询条件！')
             else:
@@ -156,7 +159,6 @@ class searchByPlyr(object):
                     elif self.scope.get() == '赛季':
                         pt = 2
                         res = player.search_by_season(stats)
-                        res = [[self.plyr_ent_value.get(), x] for x in res]
                     elif self.scope.get() == '职业生涯':
                         pt = 2
                         res = player.search_by_career(stats)
@@ -189,9 +191,7 @@ class searchByPlyr(object):
                             elif self.scope.get() == '赛季':
                                 pt = 2
                                 tmp = player.search_by_season(stats)
-                                if tmp:
-                                    tmp = [[self.pm2pn[p], x] for x in tmp]
-                                    res += tmp
+                                res += tmp
                             elif self.scope.get() == '职业生涯':
                                 pt = 2
                                 tmp = player.search_by_career(stats)

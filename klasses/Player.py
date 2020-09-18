@@ -8,12 +8,14 @@ from klasses.miscellaneous import MPTime, WinLoseCounter
 from util import LoadPickle
 import numpy as np
 import math
+import time
+from functools import  partial
+from multiprocessing import Pool as ThreadPool
 
 
 # as_str = ['Date', 'Age', 'Tm', 'RoH', 'Opp', 'MP']    # 可作为字符串直接比较
 # as_other = ['WoL', 'RoH'', Date', 'Playoffs']        # 需要做处理后再比较
-cmps = {-1: ['=='], 0: ['>='], 1: ['<='], 2: ['>=', '<=']}
-cmps_ = {-1: ['!='], 0: ['>='], 1: ['<='], 2: ['>=', '<=']}
+pm2pn = LoadPickle('../data/playermark2playername.pickle')
 
 
 class Player(object):
@@ -31,21 +33,12 @@ class Player(object):
                 self.data = LoadPickle(self.plyrFD)
                 if not isinstance(self.data, list):
                     self.data.reset_index(drop=True)
-                else:
-                    return
-                self.cols = list(self.data.columns)
-                self.cols[:self.ucgd_its[self.RoP]] = list(self.dt.keys())[:self.ucgd_its[self.RoP]]
-                self.seasons = np.sum(self.data['G'] == '1')    # 赛季数
-                self.games = self.data.shape[0]
+                    self.cols = list(self.data.columns)
+                    self.cols[:self.ucgd_its[self.RoP]] = list(self.dt.keys())[:self.ucgd_its[self.RoP]]
+                    self.seasons = np.sum(self.data['G'] == '1')    # 赛季数
+                    self.games = self.data.shape[0]
             else:
                 self.exists = False
-                return
-
-    # def _items_cmp(self, columns):    # 找出赛季数据统计缺失项并按顺序返回
-    #     if not self.RoP:
-    #         return sorted([[regular_items_en[x], x] for x in list(set(regular_items_en.keys()) - set(columns))])
-    #     else:
-    #         return sorted([[playoff_items_en[x], x] for x in list(set(playoff_items_en.keys()) - set(columns))])
 
     def season_index(self, games):
         return list(games[games['G'] == '1'].index) + [games.shape[0]]
@@ -55,7 +48,10 @@ class Player(object):
         games = games.reset_index(drop=True)
         ss_ix = self.season_index(games)
         for i in range(self.seasons):
-            yield games[ss_ix[i]:ss_ix[i + 1]]
+            ss = games.iloc[ss_ix[i]]['Date']
+            yy = ss[:4]
+            yy = '%s-%s' % (yy, str(int(yy) + 1)[-2:])
+            yield games[ss_ix[i]:ss_ix[i + 1]], yy
 
     def on_board_games(self, games):
         return games[games['G'].notna()]
@@ -84,44 +80,37 @@ class Player(object):
     def sum(self, item):
         return np.sum(self._get_item(item).astype(np.float64))
 
-    def digit_str_game_filter(self, games, stats):
+    def special_filtery(self, game, stats):    # 按条件筛选每条数据
+        sentence = ''
         for k in stats:
-            # if k != 'Diff' and self.dt[k] >= self.dt['FG'] or k in ['G', 'GS', 'G#']:
-            if en2ch[k][1] == 0:
-                tp = 0    # 数值型
-                target = [int(x) for x in stats[k][1]]
-                tmp_item = games[k].astype('float')
-            # elif k in ['Age', 'Tm', 'Opp', 'Series']:
-            elif en2ch[k][1] == 1:
-                tp = 1    # 字符型
-                target = stats[k][1]
-                tmp_item = games[k].astype('str')
-            else:
-                continue
-            cmp = cmps[stats[k][0]]
-            # print(target, cmp)
-            for cmp_i, t in enumerate(target):
-                games = eval('games[tmp_item %s "%s"]' % (cmp[cmp_i], t) if tp else 'games[tmp_item %s %d]' % (cmp[cmp_i], t))
-        return games
-
-    def special_filter(self, k, game):
-        tp = 0
-        if k == 'WoL':
-            tp, x = 1, '"%s"' % game[7 if self.RoP else 6][0]
-        elif k == 'RoH':
-            x = '0' if game[4] == '@' else '1'
-        elif k == 'Date' or k == 'Playoffs':
-            x = '%s' % game[1][:8]
-        elif k == 'MP':
-            tmp = game[9 if self.RoP else 8]
-            if int(tmp[:tmp.index(':')]) < 10:
-                tmp = '0' + tmp  # 分钟数小于10前面加0
-            if len(tmp) == 5:  # 没有数秒位
-                tmp += ':00'
-            tp, x = 1, '"%s"' % tmp
-        else:
-            x = '%s' % game[7 if self.RoP else 6][3:-1]
-        return tp, x
+            if en2ch[k][1] == 0:    # 数值型
+                x = float(game[self.dt[k]])
+                if math.isnan(x):
+                    return ''
+            elif en2ch[k][1] == 1:    # 字符型
+                x = '"%s"' % str(game[self.dt[k]])
+            else:    # 特殊处理
+                if k == 'WoL':
+                    x = '"%s"' % game[7 if self.RoP else 6][0]
+                elif k == 'RoH':
+                    x = '0' if game[4] == '@' else '1'
+                elif k == 'Date' or k == 'Playoffs':
+                    x = '%s' % game[1][:8]
+                elif k == 'MP':
+                    tmp = game[9 if self.RoP else 8]
+                    if not isinstance(tmp, str):
+                        continue
+                    if int(tmp[:tmp.index(':')]) < 10:
+                        tmp = '0' + tmp  # 分钟数小于10前面加0
+                    if len(tmp) == 5:  # 没有数秒位
+                        tmp += ':00'
+                    x = '"%s"' % tmp
+                else:
+                    x = '%d' % int(game[7 if self.RoP else 6][3:-1])
+            for cmp_i, t in enumerate(stats[k]):
+                sentence += '%s%s' % (x, stats[k][cmp_i])
+        sentence = sentence[:-5]
+        return sentence
 
     def ave_and_sum(self, tmp, type=2):    # type=0:计算总和 1:计算均值 2:计算均值和总和
         # print(self.pm)
@@ -211,52 +200,42 @@ class Player(object):
         pass
 
     def search_by_season(self, stats, ave=True):
-        resL = []
-        for ss in self.yieldSeasons():
+        tmp, resL, ys = [], [], []
+        for ss, y in self.yieldSeasons():
             ss = self.on_board_games(ss)
-            resL += self.ave_and_sum(ss, type=1 if ave else 0)
-        df = pd.DataFrame(resL, columns=regular_items_en.keys() if not self.RoP else playoff_items_en.keys())
-        return [resL[x] for x in self.digit_str_game_filter(self.on_board_games(df), stats).index]
+            tmp += self.ave_and_sum(ss, type=1 if ave else 0)
+            ys.append(y)
+        for i, game in enumerate(tmp):
+            sentence = self.special_filtery(stats, game)
+            if sentence and eval(sentence):
+                resL.append(['%s %s' % (pm2pn[self.pm], ys[i]), game])
+        return resL
 
     def search_by_career(self, stats, ave=True):
         ss = self.on_board_games(self.data)
-        resL = self.ave_and_sum(ss, type=1 if ave else 0)
-        df = pd.DataFrame(resL, columns=regular_items_en.keys() if not self.RoP else playoff_items_en.keys())
-        return [resL[x] for x in self.digit_str_game_filter(self.on_board_games(df), stats).index]
+        resL = self.ave_and_sum(ss, type=1 if ave else 0)[0]
+        sentence = self.special_filtery(stats, resL)
+        if sentence and eval(sentence):
+            return [resL]
+        else:
+            return []
 
     def search_by_game(self, stats, minG=1):
         if minG < 1:
             minG = 1
-        # print(stats)
         # 可统一比较大小或判断相等
-        games = list(self.digit_str_game_filter(self.on_board_games(self.data), stats).values)
+        games = self.on_board_games(self.data).values
         if len(games) >= minG:
-            # 需要先作预处理后再比较大小或判断相等
-            dup = set(stats) & {'WoL', 'RoH', 'Date', 'Playoffs', 'Diff', 'MP'}
-            if dup:    # 如果条件中包含这四个选项，则做进一步筛选
-                resL = []
-                for game in games:
-                    res, ToF = 1, True
-                    for k in dup:
-                        if ToF:
-                            tp, x = self.special_filter(k, game)
-                            cmp = cmps_[stats[k][0]]
-                            for cmp_i, t in enumerate(stats[k][1]):
-                                if k == 'MP':
-                                    t += ':00'
-                                if not eval('%s%s"%s"' % (x, cmp[cmp_i], t) if tp else '%s%s%s' % (x, cmp[cmp_i], t)):
-                                    res, ToF = 0, False
-                                    break
-                        else:
-                            break
-                    if res:  # 符合条件，添加至结果列表
-                        resL.append(game)
-                if len(resL) < minG:
-                    return []
+            resL = []
+            for game in games:
+                sentence = self.special_filtery(game, stats)
+                if sentence and eval(sentence):
+                    resL.append(game)
+            if len(resL) < minG:
+                return []
             else:
-                resL = games
-            resL += self.ave_and_sum(resL)    # 求取平均和总和
-            return resL
+                resL += self.ave_and_sum(resL)  # 求取平均和总和
+                return resL
         else:
             return []
 
