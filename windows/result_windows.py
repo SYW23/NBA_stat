@@ -179,28 +179,65 @@ class ShowResults(object):
         Label(self.wd_res, text=text, font=self.font, anchor='w', width=self.col_w, height=1).place(relx=0.221, rely=0.15, relwidth=0.42, relheight=0.03)
 
     @staticmethod
-    def special_sorting(l, reverse):
-        if 'W' in l[0][0] or 'L' in l[0][0]:
+    def special_sorting(l, reverse):    # 考虑排序各种情况
+        n, tp = 0, 0
+        if ('W' in l[0][0] or 'L' in l[0][0]) and '(' in l[0][0] and '.' not in l[0][0]:    # WoL
             ast_sort = np.array([int(x[0][3:-1]) for x in l])
-        elif '场' in l[0][0]:
+        elif '场' in l[0][0]:    # group G
             ast_sort = np.array([int(x[0][:-3]) for x in l])
-        elif '/' in l[0][0] and '(' in l[0][0] and ')' in l[0][0]:  # 按胜率排序
+        elif 'R/' in l[0][0]:    # group RoH
+            tp = 1
+            dt = np.dtype([('R', np.float64), ('H', np.float64)])
+            ast_sort = np.array([(int(x[0][:x[0].index('R')]), int(x[0][x[0].index('/') + 1:-1])) for x in l], dtype=dt)
+        elif '/' in l[0][0] and '(' in l[0][0] and ')' in l[0][0]:    # group WoL
+            tp = 1
+            dt = np.dtype([('P', np.float64), ('G', np.float64), ('D', np.float64)])
             ast_sort = np.array(
-                [int(x[0][:x[0].index('/')]) / (int(x[0][:x[0].index('/')]) +
-                                                int(x[0][x[0].index('/') + 1:x[0].index(' ')])) for x in l])
+                [(int(x[0][:x[0].index('W')]) / (int(x[0][:x[0].index('W')]) +
+                                                 int(x[0][x[0].index('/') + 1:x[0].index('L')])),
+                  int(x[0][:x[0].index('W')]) + int(x[0][x[0].index('/') + 1:x[0].index('L')]),
+                  float(x[0][x[0].index('(')+1:-1])) for x in l], dtype=dt)
         else:
-            ast_sort = np.array([float(x[0]) if x[0] else float('nan') for x in l])
-        out = np.argsort(ast_sort)
+            for i in l:
+                if '@' in i[0] or ':' in i[0]:    # RoH or MP
+                    tp = 1
+                    break
+                elif '/' in i[0]:
+                    tp = 2
+                    break
+            if tp == 0:
+                ast_sort = np.array([float(x[0]) if x[0] else float('nan') for x in l])
+                for i in ast_sort:
+                    if i == '' or math.isnan(i):
+                        n += 1
+            elif tp == 1:
+                ast_sort = np.array([i[0] for i in l])
+                for i in ast_sort:
+                    if i == '':
+                        n += 1
+            else:
+                dt = np.dtype([('S', np.float64), ('G', np.float64)])
+                ast_sort = np.array([(int(x[0][:x[0].index('/')]) / int(x[0][x[0].index('/') + 1:]),
+                                      int(x[0][x[0].index('/') + 1:])) if x[0] else float('nan') for x in l], dtype=dt)
+                for i in ast_sort:
+                    if isinstance(i[0], float) and math.isnan(i[0]):
+                        n += 1
+        out = list(np.argsort(ast_sort))
         if reverse:
             out = out[::-1]
+            out = out[n:] + out[:n] if tp != 1 else out
+        else:
+            if tp == 1:
+                out = out[n:] + out[:n]
         return [l[x] for x in out]
 
     def sort_column(self, col, reverse):  # 点击列名排列
         l = [[self.tree.set(k, col), k] for k in self.tree.get_children('')]  # 取出所选列中每行的值
-        # print(l)
+        print(l)
         if l[0][0].isdigit() or l[0][0] == '' or '.' in l[0][0] \
                 or l[0][0][0] == '-' or l[0][0][0] == 'L' or '+' in l[0][0] \
-                or '场' in l[0][0]:
+                or '场' in l[0][0] or '@' in l[0][0] or ':' in l[0][0] or 'r/' in l[0][0] \
+                or ('/' in l[0][0] and l[0][0] != '/'):
             l = self.special_sorting(l, reverse)  # 特殊排序
         else:
             l.sort(reverse=reverse)  # 排序方式

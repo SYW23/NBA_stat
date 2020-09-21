@@ -37,7 +37,7 @@ class searchByPlyr(object):
         self.wd_.geometry('+500+20')
         self.stats_setting = {}    # 保存查询条件设置
         self.plyr_ent_value = StringVar()
-        self.plyr_ent_value.set('LeBron James')
+        self.plyr_ent_value.set('Oscar Robertson')
         self.RoP = StringVar()
         self.RoP.set(None)
         self.AoS = StringVar()
@@ -289,3 +289,7 @@ class searchByPlyr(object):
 if __name__ == '__main__':
     search_by_player_window = searchByPlyr()
     search_by_player_window.loop()
+
+# git config --global user.name "SYW23"
+#
+# git config --global user.email "775619610@qq.com"

@@ -50,8 +50,8 @@ class WinLoseCounter(object):
             self.wl = np.array([0, 0])
 
     def __repr__(self):
-        return '%d/%d (%d)' % (self.wl[0], self.wl[1], self.diff) if self.diff < 0\
-               else '%d/%d (+%d)' % (self.wl[0], self.wl[1], self.diff)
+        return '%dW/%dL (%d)' % (self.wl[0], self.wl[1], self.diff) if self.diff < 0\
+               else '%dW/%dL (+%d)' % (self.wl[0], self.wl[1], self.diff)
 
     def __add__(self, other):
         self.counter += 1
@@ -62,9 +62,9 @@ class WinLoseCounter(object):
     def average(self):
         # print(self.diff, self.counter)
         diff_ave = self.diff / self.counter
-        return '%d/%d (' % (self.wl[0], self.wl[1]) +\
+        return '%dW/%dL (' % (self.wl[0], self.wl[1]) +\
                ('+%.1f)' % diff_ave if diff_ave > 0 else '%.1f)' % diff_ave)
 
     def repr(self):
-        return '%d/%d (%d)' % (self.wl[0], self.wl[1], self.diff) if self.diff < 0\
-               else '%d/%d (+%d)' % (self.wl[0], self.wl[1], self.diff)
+        return '%dW/%dL (%d)' % (self.wl[0], self.wl[1], self.diff) if self.diff < 0\
+               else '%dW/%dL (+%d)' % (self.wl[0], self.wl[1], self.diff)

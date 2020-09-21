@@ -137,8 +137,8 @@ class Player(object):
                 except:
                     at = 0
                 if type:
-                    ave.append('%dr/%dh' % (at, tmp.shape[0] - at))
-                sumn.append('%dr/%dh' % (at, tmp.shape[0] - at))
+                    ave.append('%dR/%dH' % (at, tmp.shape[0] - at))
+                sumn.append('%dR/%dH' % (at, tmp.shape[0] - at))
             elif k == 'WoL':  # 统计几胜几负
                 origin = WinLoseCounter(False)
                 for i in tmp[k]:
@@ -147,13 +147,19 @@ class Player(object):
                     ave.append(origin.average())
                 sumn.append(origin)
             elif k == 'GS':  # 统计首发次数
-                try:
-                    s = np.sum(tmp[k] == '1')
-                except:
-                    s = 0
-                if type:
-                    ave.append('%d/%d' % (s, tmp.shape[0]))
-                sumn.append('%d/%d' % (s, tmp.shape[0]))
+                cs = tmp[k].value_counts()
+                if cs.empty:
+                    if type:
+                        ave.append('')
+                    sumn.append('')
+                else:
+                    try:
+                        s = np.sum(tmp[k] == '1')
+                    except:
+                        s = 0
+                    if type:
+                        ave.append('%d/%d' % (s, tmp.shape[0]))
+                    sumn.append('%d/%d' % (s, tmp.shape[0]))
             elif k == 'MP':  # 时间加和与平均
                 sum_time = MPTime('0:00.0', reverse=False)
                 for i in tmp[k]:
