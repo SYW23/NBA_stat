@@ -8,14 +8,8 @@ from klasses.miscellaneous import MPTime, WinLoseCounter
 from util import LoadPickle
 import numpy as np
 import math
-import time
-from functools import  partial
-from multiprocessing import Pool as ThreadPool
 
-
-# as_str = ['Date', 'Age', 'Tm', 'RoH', 'Opp', 'MP']    # 可作为字符串直接比较
-# as_other = ['WoL', 'RoH'', Date', 'Playoffs']        # 需要做处理后再比较
-pm2pn = LoadPickle('../data/playermark2playername.pickle')
+pm2pn = LoadPickle('D:/sunyiwu/stat/data/playermark2playername.pickle')
 
 
 class Player(object):
@@ -33,27 +27,37 @@ class Player(object):
                 self.data = LoadPickle(self.plyrFD)
                 if not isinstance(self.data, list):
                     self.data.reset_index(drop=True)
+                    if len(self.data.columns) == len(self.dt):
+                        self.data.columns = list(self.dt.keys())
+                    else:
+                        self.data.columns[:self.ucgd_its[self.RoP]] = list(self.dt.keys())[:self.ucgd_its[self.RoP]]
                     self.cols = list(self.data.columns)
-                    self.cols[:self.ucgd_its[self.RoP]] = list(self.dt.keys())[:self.ucgd_its[self.RoP]]
+                    # print(self.pm, self.cols)
                     self.seasons = np.sum(self.data['G'] == '1')    # 赛季数
                     self.games = self.data.shape[0]
             else:
                 self.exists = False
 
     def season_index(self, games):
+        # print(type(games['G'][0]), games['G'])
         return list(games[games['G'] == '1'].index) + [games.shape[0]]
 
-    def yieldSeasons(self):  # 按赛季返回
+    def yieldSeasons(self, sgames=True):  # 按赛季返回
         games = self.on_board_games(self.data)
         games = games.reset_index(drop=True)
         ss_ix = self.season_index(games)
         for i in range(self.seasons):
-            ss = games.iloc[ss_ix[i]]['Date']
+            ss = games.iloc[ss_ix[i]]['Playoffs' if self.RoP else 'Date']
             yy = ss[:4]
-            yy = '%s-%s' % (yy, str(int(yy) + 1)[-2:])
-            yield games[ss_ix[i]:ss_ix[i + 1]], yy
+            yy = '%s-%s' % (str(int(yy) - 1), yy[-2:]) if self.RoP else '%s-%s' % (yy, str(int(yy) + 1)[-2:])
+            if sgames:
+                yield games[ss_ix[i]:ss_ix[i + 1]], yy
+            else:
+                yield yy
 
     def on_board_games(self, games):
+        # games = games['G'].astype('str')
+        # games = games[games['G'] != '']
         return games[games['G'].notna()]
 
     def yieldGames(self, season, del_absent=True):  # 按单场比赛返回
@@ -80,7 +84,7 @@ class Player(object):
     def sum(self, item):
         return np.sum(self._get_item(item).astype(np.float64))
 
-    def special_filtery(self, game, stats):    # 按条件筛选每条数据
+    def special_filter(self, game, stats):    # 按条件筛选每条数据
         sentence = ''
         for k in stats:
             if en2ch[k][1] == 0:    # 数值型
@@ -113,14 +117,12 @@ class Player(object):
         return sentence
 
     def ave_and_sum(self, tmp, type=2):    # type=0:计算总和 1:计算均值 2:计算均值和总和
-        # print(self.pm)
         if isinstance(tmp, list):
             tmp = pd.DataFrame(tmp, columns=regular_items_en.keys() if not self.RoP else playoff_items_en.keys())
         if type:
             ave = []
         sumn = []
         for k in tmp.columns:
-            # 几项特殊的均值/总和计算方式
             if k == 'G':  # 首列
                 if type:
                     ave.append('%d场平均' % tmp.shape[0])
@@ -161,8 +163,12 @@ class Player(object):
                     ave.append(sum_time.average(tmp.shape[0]))
                 sumn.append(sum_time.strtime[:-2])
             elif '%' in k:  # 命中率单独计算
-                if sumn[-2] and sumn[-1] and sumn[-2] >= 0 and int(sumn[-1]) > 0:
-                    p = '%.3f' % (sumn[-2] / sumn[-1])
+                goal = tmp[[k[:-1], k[:-1] + 'A']]
+                goal = goal.dropna(axis=0, how='any')
+                goal = goal.astype('float').sum(axis=0)
+                p = goal[k[:-1]] / goal[k[:-1] + 'A']
+                if not math.isnan(p):
+                    p = '%.3f' % p
                     if p != '1.000':
                         p = p[1:]
                 else:
@@ -172,19 +178,28 @@ class Player(object):
                 sumn.append(p)
             else:
                 tmp_sg = tmp[k][tmp[k].notna()]
-                if type:
-                    a = '%.1f' % tmp_sg.astype('float').mean()
-                # 除比赛评分以外其他求和结果均为整数
-                s = '%.1f' % tmp_sg.astype('float').sum() if k == 'GmSc' else int(tmp_sg.astype('int').sum())
-                if k == '+/-':  # 正负值加+号
-                    if type and s != 0 and a[0] != '-':
-                        a = '+' + a
-                    if s > 0:
-                        s = '+%d' % s
-                if s == 'nan':
+                # tmp_sg = tmp_sg[tmp_sg != '']
+                if not tmp_sg.empty:
                     if type:
-                        a = ''
-                    s = ''
+                        # print(tmp_sg)
+                        try:
+                            a = '%.1f' % tmp_sg.astype('float').mean()
+                        except:
+                            tmp_sg = tmp_sg[tmp_sg != '']
+                            a = '%.1f' % tmp_sg.astype('float').mean()
+                    # 除比赛评分以外其他求和结果均为整数
+                    s = '%.1f' % tmp_sg.astype('float').sum() if k == 'GmSc' else int(tmp_sg.astype('int').sum())
+                    if k == '+/-':  # 正负值加+号
+                        if type and s != 0 and a[0] != '-':
+                            a = '+' + a
+                        if s > 0:
+                            s = '+%d' % s
+                    if s == 'nan':
+                        if type:
+                            a = ''
+                        s = ''
+                else:
+                    a, s = '', ''
                 if type:
                     ave.append(a)
                 sumn.append(s)
@@ -195,26 +210,44 @@ class Player(object):
         else:
             return [ave, sumn]
 
-    def consecutive(self, stats):
-
-        pass
-
-    def search_by_season(self, stats, ave=True):
-        tmp, resL, ys = [], [], []
-        for ss, y in self.yieldSeasons():
-            ss = self.on_board_games(ss)
-            tmp += self.ave_and_sum(ss, type=1 if ave else 0)
-            ys.append(y)
-        for i, game in enumerate(tmp):
-            sentence = self.special_filtery(stats, game)
-            if sentence and eval(sentence):
-                resL.append(['%s %s' % (pm2pn[self.pm], ys[i]), game])
+    def search_by_consecutive(self, stats, minG=2):
+        if minG < 2:
+            minG = 2
+        # print(stats)
+        resL, tmp = [], []
+        for ss, ys in self.yieldSeasons():
+            for game in list(ss.values):
+                sentence = self.special_filter(game, stats)
+                if sentence and eval(sentence):
+                    tmp.append(game)
+                else:
+                    if len(tmp) >= minG:
+                        tmp += self.ave_and_sum(tmp)
+                        resL.append(['%s %s' % (pm2pn[self.pm], ys), tmp])
+                    tmp = []
         return resL
 
-    def search_by_career(self, stats, ave=True):
-        ss = self.on_board_games(self.data)
-        resL = self.ave_and_sum(ss, type=1 if ave else 0)[0]
-        sentence = self.special_filtery(stats, resL)
+    def search_by_season(self, stats, ave=1):
+        c = LoadPickle('../data/players/%s/%sGames/%sSaCAaS.pickle' % (self.pm, 'playoff' if self.RoP else 'regular',
+                                                                       'playoff' if self.RoP else 'regular'))
+        tmp, resL, ys = [], [], []
+        c = list(c.values)
+        t = 0 if ave else 1
+        for i, x in enumerate(c[:-2]):
+            if i % 2 == t:
+                tmp.append(x)
+        [ys.append(y) for y in self.yieldSeasons(sgames=False)]
+        for i, game in enumerate(tmp):
+            sentence = self.special_filter(game, stats)
+            if sentence and eval(sentence):
+                resL.append(['%s %s' % (pm2pn[self.pm], ys[i]), list(game)])
+        return resL
+
+    def search_by_career(self, stats, ave=1):
+        c = LoadPickle('../data/players/%s/%sGames/%sSaCAaS.pickle' % (self.pm, 'playoff' if self.RoP else 'regular',
+                                                                       'playoff' if self.RoP else 'regular'))
+        resL = list(c.values[-2:][ave - 1])
+        sentence = self.special_filter(resL, stats)
         if sentence and eval(sentence):
             return [resL]
         else:
@@ -228,7 +261,7 @@ class Player(object):
         if len(games) >= minG:
             resL = []
             for game in games:
-                sentence = self.special_filtery(game, stats)
+                sentence = self.special_filter(game, stats)
                 if sentence and eval(sentence):
                     resL.append(game)
             if len(resL) < minG:

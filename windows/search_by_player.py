@@ -158,11 +158,14 @@ class searchByPlyr(object):
                         res = player.search_by_game(stats)
                     elif self.scope.get() == '赛季':
                         pt = 2
-                        res = player.search_by_season(stats)
+                        res = player.search_by_season(stats, int(self.AoS.get()))
                     elif self.scope.get() == '职业生涯':
                         pt = 2
-                        res = player.search_by_career(stats)
+                        res = player.search_by_career(stats, int(self.AoS.get()))
                         res = [[self.plyr_ent_value.get(), x] for x in res]
+                    elif self.scope.get() == '连续比赛':
+                        pt = 0
+                        res = player.search_by_consecutive(stats)
                 else:    # 按球员分组查询
                     pt = 0
                     # start = time.time()
@@ -190,19 +193,23 @@ class searchByPlyr(object):
                                     res.append([self.pm2pn[p], tmp])
                             elif self.scope.get() == '赛季':
                                 pt = 2
-                                tmp = player.search_by_season(stats)
+                                tmp = player.search_by_season(stats, int(self.AoS.get()))
                                 res += tmp
                             elif self.scope.get() == '职业生涯':
                                 pt = 2
-                                tmp = player.search_by_career(stats)
+                                tmp = player.search_by_career(stats, int(self.AoS.get()))
                                 if tmp:
                                     tmp = [[self.pm2pn[p], x] for x in tmp]
                                     res += tmp
+                            elif self.scope.get() == '连续比赛':
+                                pt = 0
+                                res += player.search_by_consecutive(stats, minG=int(self.plyr_ent_value.get()))
                     print(time.time() - start)
                 # 处理结果
                 if res:
                     RP = regular_items_en if self.RoP.get() == 'regular' else playoff_items_en
                     win_klass = ShowSingleResults if pt else ShowGroupResults
+                    # print(win_klass)
                     if pt == 2:
                         win_klass = ShowResults
                     result_window = win_klass(res, list(RP.keys()), self.RoP.get(), detail=False if pt else True)
@@ -246,9 +253,9 @@ class searchByPlyr(object):
         scope_sel = ttk.Combobox(gametype_fm, width=7, textvariable=self.scope)
         scope_sel['value'] = ['单场比赛', '赛季', '职业生涯', '连续比赛', '连续赛季']
         scope_sel.current(0)
-        ave_sel = self.one_tick_sel(gametype_fm, '场均', 'ave', 2, self.AoS, self.AoSselection)
-        sum_sel = self.one_tick_sel(gametype_fm, '总和', 'sum', 2, self.AoS, self.AoSselection)
-        self.AoS.set('ave')
+        ave_sel = self.one_tick_sel(gametype_fm, '场均', '1', 2, self.AoS, self.AoSselection)
+        sum_sel = self.one_tick_sel(gametype_fm, '总和', '0', 2, self.AoS, self.AoSselection)
+        self.AoS.set('1')
         self.place_sep(gametype_fm, 2, columnspan=2)
         gametype_fm.grid(padx=self.paddingx, pady=self.paddingy, row=1, rowspan=2, column=7, columnspan=4)
         rglr_sel.grid(padx=self.paddingx, pady=self.paddingy, row=1, column=0)

@@ -22,7 +22,6 @@ regularOrPlayoffs = ['regular', 'playoff']
 # f.close()
 # =============================================================================
 
-#%%
 f = open('./data/playerBasicInformation.pickle', 'rb')
 playerInf = pickle.load(f)
 f.close()
@@ -31,38 +30,29 @@ f.close()
 for i in playerInf[::-1]:    # james 2067
     url = i[1]
     print(url)
-    # 获取网页源代码
-    playerPage = getCode(url, 'UTF-8')
-    if not playerPage.find_all('h1', itemprop="name"):
-        continue
-    # 球员英文名
-    playerEnglishName = playerPage.find_all('h1', itemprop="name")[0].string
-    pm = url.split('/')[-1][:-5]
-    pn = i[1].split('/')[-1][:-5]
-    
-    # -----常规赛-----
-    seasonAVE = []
-    singleGAMES = []
-    seasonURLs = []
-    seasons = playerPage.find('table', id='per_game').find_all('tr')    # 赛季平均
-    # 赛季表表头
-    items = [x.text for x in seasons[0].find_all('th')]
-    # 读取已存储文件
-    playerFileDir = './data/players/%s/regularGames/regularGameBasicStat.csv' % pn
-    if os.path.exists(playerFileDir):
-        pf = pd.read_csv(playerFileDir)
-        last_game = pf['Date'][pf.shape[0]-1]
-        last_moth = month = int(last_game[4:6])
-        last_season = int(last_game[:4]) if last_moth < 9 else int(last_game[:4]) + 1
-    else:
-        pf = []
-        last_game = '0'
-        last_season = 0
-    if last_season == 0 or last_season > 2018:
-        # ----逐赛季扫描----
+    last_season = int(i[7])
+    if last_season > 2018:
+        # 获取网页源代码
+        playerPage = getCode(url, 'UTF-8')
+        if not playerPage.find_all('h1', itemprop="name"):
+            continue
+        # 球员英文名
+        playerEnglishName = playerPage.find_all('h1', itemprop="name")[0].string
+        pm = url.split('/')[-1][:-5]
+        pn = i[1].split('/')[-1][:-5]
+        
+        # -----常规赛-----
+        seasonAVE = []
+        singleGAMES = []
+        seasonURLs = []
+        seasons = playerPage.find('table', id='per_game').find_all('tr')    # 赛季平均
+        # 赛季表表头
+        items = [x.text for x in seasons[0].find_all('th')]
+            # ----逐赛季扫描----
         for ind, season in enumerate(seasons[1:]):
             if season.find_all('th'):
                 th = season.find_all('th')[0]
+                # print(th)
             else:
                 continue
             tds = season.find_all('td')
@@ -85,30 +75,22 @@ for i in playerInf[::-1]:    # james 2067
                         if not seasonPage.find('table', class_='stats_table'):
                             continue
                         trs = seasonPage.find('table', class_='stats_table').find_all('tr')
-                        # 表头
-                        items_s = [x.get_text().strip() for x in trs[0].find_all('th')][1:]
-                        colNumber = len(items_s)
-                        if seasonURL[-5:-1] >= str(last_season):
-                            if seasonURL[-5:-1] > str(last_season):
-                                singleGAMES.append(items_s)
-                            # 遍历行
-                            for tr in trs:
-                                tds = tr.find_all('td')
-                                if len(tds) > 1:
-                                    gm = tds[1].a.attrs['href'].lstrip('/boxscores/').rstrip('.html')
-                                    if gm > last_game:
-                                        # 排除重复表头行（20场重复一次）以及缺席比赛行（inactivate）
-                                        if len(tds) > 10:
-                                            assert len(tds) == colNumber
-                                            gameStat = [x.get_text().strip() for x in tds]
-                                            # 将Date列置为比赛标志符
-                                            gameStat[1] = gm
-                                            singleGAMES.append(gameStat)
-                                        elif len(tds) > 1:    # 缺席比赛行（inactivate）
-                                            gameStat = [x.get_text().strip() for x in tds]
-                                            gameStat[1] = gm
-                                            gameStat += [''] * (colNumber - len(gameStat))
-                                            singleGAMES.append(gameStat)
+                        # if seasonURL[-5:-1] >= str(last_season):    # 检查最后一个赛季
+                        # 遍历行
+                        for tr in trs:
+                            tds = tr.find_all('td')
+                            if len(tds) > 1:
+                                gm = tds[1].a.attrs['href'].lstrip('/boxscores/').rstrip('.html')    # 日期
+                                # if gm > last_game:    # 检查日期
+                                if len(tds) > 10:    # 排除重复表头行（20场重复一次）以及缺席比赛行（inactivate）
+                                    gameStat = [x.get_text().strip() for x in tds]
+                                    gameStat[1] = gm    # 将Date列置为比赛标志符
+                                    singleGAMES.append(gameStat)
+                                elif len(tds) > 1:    # 缺席比赛行（inactivate）
+                                    gameStat = [x.get_text().strip() for x in tds]
+                                    gameStat[1] = gm
+                                    gameStat += [''] * (29 - len(gameStat))    # 用''补全剩余单元格
+                                    singleGAMES.append(gameStat)
             else:
                 break
         # ----生涯及分队场均----
@@ -128,86 +110,47 @@ for i in playerInf[::-1]:    # james 2067
             if not os.path.exists('./data/players/%s/regularGames' % pm):
                 os.mkdir('./data/players/%s/regularGames'% pm)
             df = pd.DataFrame(seasonAVE, columns=items)
-            df.to_csv('./data/players/%s/regularGames/seasonAVE.csv' % pm, index=None)
-            if len(singleGAMES) > 0:
-                if not isinstance(pf, list):
-                    singleGAMES = [list(pf.columns)] + list([list(x) for x in pf.values]) + singleGAMES
-                df = pd.DataFrame(singleGAMES)
-                df.to_csv('./data/players/%s/regularGames/regularGameBasicStat.csv' % pm, header=False, index=None)
-            else:
-                print('无常规赛更新')
+            writeToPickle('./data/players/%s/regularGames/seasonAVE.pickle' % pm, df)
+            
+            df = pd.DataFrame(singleGAMES, columns=regular_items_en.keys())
+            df[df == ''] = np.nan
+            for col in df.columns:
+                df[col] = df[col].astype('category')
+            writeToPickle('./data/players/%s/regularGames/regularGameBasicStat.pickle' % pm, df)
         else:
-            print('球员未参加过NBA常规赛')
-        
-    # 写入pickle文件
-    res = pd.DataFrame(columns=regular_items_en.keys())
-    p = Player(pm, 'regular')
-    if p.exists:
-        for games in p.yieldSeasons(to_integrated=True):
-            # print(games.columns)
-            res = pd.concat([res, games])
-        for col in res.columns:
-            res[col] = res[col].astype('category')
-        writeToPickle('./data/players/%s/regularGames/regularGameBasicStat.pickle' % pm, res)
-        res.to_csv('./data/players/%s/regularGames/regularGameBasicStat.csv' % pm, header=False, index=None)
-        # pf.to_pickle('./data/players/%s/regularGames/regularGameBasicStat.pkl' % pm)
-    
-    
+            print('球员未参加过NBA常规赛')    
     #%%
     # -----季后赛----- 
-    seasonAVE = []
-    singleGAMES = []
-    links = playerPage.find_all('div', class_='section_content')[-1].find_all('ul')[0].find_all('li')
-    if links[-1].a.string == 'Career Playoffs':
-        playoffURL = 'https://www.basketball-reference.com' + links[-1].a.attrs['href']
-        print('playoff')
-    else:
-        print('球员未参加过NBA季后赛')
-        continue
-    playoffPage = getCode(playoffURL, 'UTF-8')
-    if not playoffPage.find('table', class_='stats_table'):
-        continue
-    trs = playoffPage.find('table', class_='stats_table').find_all('tr')
-    # 读取已存储文件
-    playerFileDir = './data/players/%s/playoffGames/playoffGameBasicStat.csv' % pn
-    if os.path.exists(playerFileDir):
-        pf = pd.read_csv(playerFileDir)
-        last_game = pf[pf.columns[1]][pf.shape[0]-1]
-        last_season = int(last_game[:4])
-    else:
-        pf = []
-        last_game = '0'
-        last_season = 0
-    if last_season == 0 or last_season > 2018:
-        # 首赛季表头
-        items = [x.get_text().strip() for x in trs[0].find_all('th')][1:]
-        if items[1][:4] > str(last_season):
-            singleGAMES.append(items)
-        colNumber = len(items)
+    if last_season > 2018:
+        seasonAVE = []
+        singleGAMES = []
+        links = playerPage.find_all('div', class_='section_content')[-1].find_all('ul')[0].find_all('li')
+        if links[-1].a.string == 'Career Playoffs':
+            playoffURL = 'https://www.basketball-reference.com' + links[-1].a.attrs['href']
+            print('playoff')
+        else:
+            print('球员未参加过NBA季后赛')
+            continue
+        playoffPage = getCode(playoffURL, 'UTF-8')
+        if not playoffPage.find('table', class_='stats_table'):
+            continue
+        trs = playoffPage.find('table', class_='stats_table').find_all('tr')
         # ----逐场扫描----
         for tr in trs[1:]:
             tds = tr.find_all('td')
             if len(tds) > 0 and tds[1].a:
                 gm = tds[1].a.attrs['href'].lstrip('/boxscores/').rstrip('.html')
-                if gm > last_game:
-                    if len(tds) > 10:
-                        assert len(tds) == colNumber
-                        gameStat = [x.get_text().strip() for x in tds]
-                        if gameStat[0] and 'aba' not in tds[2].a.attrs['href']:    # 排除ABA比赛记录
-                            gameStat[1] = gm
-                            singleGAMES.append(gameStat)
-                        else:
-                            if singleGAMES and singleGAMES[-1][0] == 'G':    # 整个赛季都是aba比赛的情况下，删除之前添加的ABA赛季表头
-                                singleGAMES.pop()
-                    elif len(tds) > 1:    # 缺席比赛行（inactivate）
-                        gameStat = [x.get_text().strip() for x in tds]
+                # if gm > last_game:
+                if len(tds) > 10:
+                    gameStat = [x.get_text().strip() for x in tds]
+                    if gameStat[0] and 'aba' not in tds[2].a.attrs['href']:    # 排除ABA比赛记录
                         gameStat[1] = gm
-                        gameStat += [''] * (colNumber - len(gameStat))
                         singleGAMES.append(gameStat)
-            elif len(tds) == 0:    # 新赛季表头
-                items = [x.get_text().strip() for x in tr.find_all('th')][1:]
-                if items[1][:4] > str(last_season):
-                    singleGAMES.append(items)
+                elif len(tds) > 1:    # 缺席比赛行（inactivate）
+                    gameStat = [x.get_text().strip() for x in tds]
+                    gameStat[1] = gm
+                    gameStat += [''] * (30 - len(gameStat))
+                    singleGAMES.append(gameStat)
         # ----赛季场均----
         text = str(playerPage)
         try:
@@ -251,27 +194,15 @@ for i in playerInf[::-1]:    # james 2067
             if not os.path.exists('./data/players/%s/playoffGames' % pm):
                 os.mkdir('./data/players/%s/playoffGames'% pm)
             df = pd.DataFrame(seasonAVE, columns=items)
-            df.to_csv('./data/players/%s/playoffGames/seasonAVE.csv' % pm, index=None)
-            if len(singleGAMES) > 0:
-                if not isinstance(pf, list):
-                    singleGAMES = [list(pf.columns)] + list([list(x) for x in pf.values]) + singleGAMES
-                df = pd.DataFrame(singleGAMES)
-                df.to_csv('./data/players/%s/playoffGames/playoffGameBasicStat.csv' % pm, header=False, index=None)
-            else:
-                print('无季后赛更新')
+            writeToPickle('./data/players/%s/playoffGames/seasonAVE.pickle' % pm, df)
+            df = pd.DataFrame(singleGAMES, columns=playoff_items_en.keys())
+            df[df == ''] = np.nan
+            for col in df.columns:
+                df[col] = df[col].astype('category')
+            writeToPickle('./data/players/%s/playoffGames/playoffGameBasicStat.pickle' % pm, df)
         else:
             print('球员未参加过NBA季后赛')
-    # 写入pickle文件
-    res = pd.DataFrame(columns=playoff_items_en.keys())
-    p = Player(pm, 'playoff')
-    if p.exists:
-        for games in p.yieldSeasons(to_integrated=True):
-            # print(games.columns)
-            res = pd.concat([res, games])
-        for col in res.columns:
-            res[col] = res[col].astype('category')
-        writeToPickle('./data/players/%s/playoffGames/playoffGameBasicStat.pickle' % pm, res)
-        res.to_csv('./data/players/%s/playoffGames/playoffGameBasicStat.csv' % pm, header=False, index=None)
+
 # =============================================================================
 #     if i[2] and i[3]:
 #         links = playerPage.find_all('div', class_='section_content')[-1].find_all('ul')[0].find_all('li')

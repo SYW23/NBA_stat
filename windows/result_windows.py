@@ -149,6 +149,7 @@ class ShowResults(object):
         self.RP = 0 if RP == 'regular' else 1
         self.tree = None
         self.dates = [x[1] for x in res]
+        # print(self.dates)
         self.stats = None
         self.cmps = {-1: ['=='], 0: ['>='], 1: ['<=']}
         self.p = 0    # 是否有Player列
@@ -217,7 +218,7 @@ class ShowResults(object):
         if isinstance(r[ix], str) and r[ix].count(':') == 2:
             assert r[ix][-3:] == ':00'
             r[ix] = r[ix][:-3]
-        if isinstance(r[ix], str) and int(r[ix][:r[ix].index(':')]) < 10:
+        if isinstance(r[ix], str) and r[ix] and int(r[ix][:r[ix].index(':')]) < 10:
             r[ix] = '0' + r[ix]
         for j in range(len(r)):
             if (isinstance(r[j], float) and math.isnan(r[j])) or r[j] == 'nan':
@@ -296,10 +297,12 @@ class ShowGroupResults(ShowResults):
         super(ShowGroupResults, self).__init__(res, columns, RP)
         # self.columns.insert(0, 'Player')
         self.detail = detail
+        self.dates = [[j[1] for j in i[1][:-2]] for i in self.res]
 
     def double(self, event):
         line_number = int(self.tree.selection()[0][1:], 16) - 1
         game_win = ShowSingleResults(self.res[line_number][1], self.columns[1:], 'playoff' if self.RP else 'regular')
+        game_win.dates = self.dates[line_number]
         game_win.title('%s每场详细数据' % self.res[line_number][0])
         game_win.loop('共查询到%d条记录' % (len(self.res[line_number][1]) - 2), self.stats)
 
