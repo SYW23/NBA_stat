@@ -1,17 +1,21 @@
 import math
 import numpy as np
+import re
 
 
 class MPTime(object):
     def __init__(self, strtime, reverse=True, qtr=-1):    # reverse为True为倒计时模式，qtr为节次
-        if strtime.count(':') == 2:
-            assert strtime[-3:] == ':00'
-            strtime = strtime[:-3]
-        tmp = strtime.index(':')
-        self.strtime = strtime
-        self.min = int(strtime[:tmp])
-        self.sec = int(strtime[tmp+1:tmp+3])
-        self.msc = int(strtime[-1]) if '.' in strtime else 0
+        ans = re.findall('\d+', strtime)
+        if len(ans) == 3:
+            if ans[2] == '00':
+                self.strtime = strtime[:-3]
+            else:
+                self.strtime = strtime
+            [self.min, self.sec, self.msc] = [int(x) for x in ans]
+        else:
+            self.strtime = strtime
+            [self.min, self.sec] = [int(x) for x in ans]
+            self.msc = 0
         self.reverse = reverse
         self.qtr = qtr
 
@@ -30,6 +34,22 @@ class MPTime(object):
             a[0] += 1
             c -= 60
         return MPTime('%d:%02d.%d' % ((a[0] + b[0]), c, d), reverse=self.reverse)
+
+    def __le__(self, other):
+        if self.min > other.min:
+            return False
+        elif self.min < other.min:
+            return True
+        else:
+            if self.sec > other.sec:
+                return False
+            elif self.sec < other.sec:
+                return True
+            else:
+                if self.msc > other.msc:
+                    return False
+                else:
+                    return True
 
     def average(self, n):    # 返回精确到秒"mm:ss"
         ss = eval(str(self.min) + '*60+' + str(self.sec))

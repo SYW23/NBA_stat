@@ -25,19 +25,13 @@ def writeToExcel(file, colNames, content):
     output.close()
 
 
-def yieldGames(ROP, season):
-    if ROP == 'regular':
-        for g in season[1:]:
-            yield g
-    else:
-        if season and season[0] != 'G':
-            for s in season:
-                for g in s:
-                    yield g
+def yieldGames(gs):
+    for i in range(gs.shape[0]):
+        yield gs.iloc[i].values
 
 
 # 由gameMark推导出比赛文件目录
-def gameMarkToDir(gameMark, regularOrPlayoff, shot=False):
+def gameMarkToDir(gameMark, regularOrPlayoff, tp=0):    # 0: game  1: shot  2: boxscore
     if regularOrPlayoff == 'playoff':
         regularOrPlayoff = 'playoffs'
     seasonNum = gameMark[:4]
@@ -46,8 +40,10 @@ def gameMarkToDir(gameMark, regularOrPlayoff, shot=False):
         season = '%s_%s' % (seasonNum, str(int(seasonNum) + 1))
     else:
         season = '%s_%s' % (str(int(seasonNum) - 1), seasonNum)
-    if shot:
+    if tp == 1:
         gameDir = './data/seasons_shot/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_shot.pickle'
+    elif tp == 2:
+        gameDir = './data/seasons_boxscores/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_boxscores.pickle'
     else:
         gameDir = './data/seasons/%s/%s/' % (season, regularOrPlayoff) + gameMark + '.pickle'
     return gameDir
@@ -135,14 +131,14 @@ def minusMinutes(a, b):
 
 # 保存pickle数据文件
 def writeToPickle(fileName, content):
-    f = open(fileName,'wb')
+    f = open(fileName, 'wb')
     pickle.dump(content, f)
     f.close()
 
 
 # 读取pickle数据文件
 def LoadPickle(fileName):
-    f = open(fileName,'rb')
+    f = open(fileName, 'rb')
     content = pickle.load(f)
     f.close()
     return content
@@ -501,62 +497,64 @@ def playerClutchScoreDistribution(playerName, playerMark, HomeOrAts, diffPlus, d
     playerGames = pickle.load(f)
     f.close()
     goalOrMiss = [[0, 0, 0], [0, 0, 0]]
-    for season in playerGames:
-        for game in yieldGames(ROP, season):
-            gameMark = game[1]
-            team = game[3]
-            # 读取比赛文件
-            gameDir = gameMarkToDir(gameMark, ROP)
-            f = open(gameDir, 'rb')
-            playerGame = pickle.load(f)
-            f.close()
-            # 判断主客场
-            HOA = 1 if team == gameMark[-3:] else 0    # 0客1主
-            HomeOrAt = HomeOrAts[HOA-1]
-            # 扫描比赛表现
-            for index, quarter in enumerate(playerGame[3:]):
-                for play in quarter:
-                    if len(play) == 6 and notEarlierThan(play[0], lastMins):
-                        if play[HomeOrAt[1]]:
-                            playerPlayed = play[HomeOrAt[1]].split(' ')[0]
-                            if playerPlayed == playerMark and (play[HomeOrAt[0]] or 'misses' in play[HomeOrAt[1]]):
-                                # 此球员有得分/错失得分
-                                score = 0
-                                if play[HomeOrAt[0]]:
-                                    # 球员得分
-                                    DLT = 1
-                                    score = int(play[HomeOrAt[0]])
-                                    if score >= 4:
-                                        if 'free throw' in play[HomeOrAt[1]]:
-                                            score = 1
-                                        elif '2-pt' in play[HomeOrAt[1]]:
-                                            score = 2
-                                        elif '3-pt' in play[HomeOrAt[1]]:
-                                            score = 3
-                                else:
-                                    # 球员失手
-                                    DLT = 0
+    # print(playerGames)
+    for game in yieldGames(playerGames):
+        gameMark = game[1]
+        if gameMark == '201606190CLE':
+            continue
+        team = game[3]
+        # 读取比赛文件
+        gameDir = gameMarkToDir(gameMark, ROP)
+        f = open(gameDir, 'rb')
+        playerGame = pickle.load(f)
+        f.close()
+        # 判断主客场
+        HOA = 1 if team == gameMark[-3:] else 0    # 0客1主
+        HomeOrAt = HomeOrAts[HOA-1]
+        # 扫描比赛表现
+        for index, quarter in enumerate(playerGame[3:]):
+            for play in quarter:
+                if len(play) == 6 and notEarlierThan(play[0], lastMins):
+                    if play[HomeOrAt[1]]:
+                        playerPlayed = play[HomeOrAt[1]].split(' ')[0]
+                        if playerPlayed == playerMark and (play[HomeOrAt[0]] or 'misses' in play[HomeOrAt[1]]):
+                            # 此球员有得分/错失得分
+                            score = 0
+                            if play[HomeOrAt[0]]:
+                                # 球员得分
+                                DLT = 1
+                                score = int(play[HomeOrAt[0]])
+                                if score >= 4:
                                     if 'free throw' in play[HomeOrAt[1]]:
                                         score = 1
                                     elif '2-pt' in play[HomeOrAt[1]]:
                                         score = 2
                                     elif '3-pt' in play[HomeOrAt[1]]:
                                         score = 3
-                                    elif 'misses no shot'in play[HomeOrAt[1]]:
-                                        continue
-                                try:
-                                    assert score in [1, 2, 3]
-                                except:
-                                    print(gameMark, play)
-                                if index > 2 and play[0] == '0:00.1' and 44 < diff < 56:
-                                    print(index, play, gameMark)
-                                # 计算分差
-                                scores = [int(x) for x in play[3].split('-')]
-                                teamScore = scores[HOA] - DLT * score
-                                opponentScore = scores[HOA-1]
-                                diff = teamScore - opponentScore
-                                if diffMinus <= diff <= diffPlus:
-                                    goalOrMiss[DLT-1][score-1] += 1
+                            else:
+                                # 球员失手
+                                DLT = 0
+                                if 'free throw' in play[HomeOrAt[1]]:
+                                    score = 1
+                                elif '2-pt' in play[HomeOrAt[1]]:
+                                    score = 2
+                                elif '3-pt' in play[HomeOrAt[1]]:
+                                    score = 3
+                                elif 'misses no shot'in play[HomeOrAt[1]]:
+                                    continue
+                            try:
+                                assert score in [1, 2, 3]
+                            except:
+                                print(gameMark, play)
+                            if index > 2 and play[0] == '0:00.1' and 44 < diff < 56:
+                                print(index, play, gameMark)
+                            # 计算分差
+                            scores = [int(x) for x in play[3].split('-')]
+                            teamScore = scores[HOA] - DLT * score
+                            opponentScore = scores[HOA-1]
+                            diff = teamScore - opponentScore
+                            if diffMinus <= diff <= diffPlus:
+                                goalOrMiss[DLT-1][score-1] += 1
     
     attempts = goalOrMiss[0][1]+goalOrMiss[1][1]+goalOrMiss[0][2]+goalOrMiss[1][2]
     sumUp = goalOrMiss[0][0]+goalOrMiss[0][1]*2+goalOrMiss[0][2]*3

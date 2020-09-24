@@ -8,6 +8,8 @@ from klasses.miscellaneous import MPTime, WinLoseCounter
 from util import LoadPickle
 import numpy as np
 import math
+import multiprocessing
+from multiprocessing.pool import Pool
 
 pm2pn = LoadPickle('D:/sunyiwu/stat/data/playermark2playername.pickle')
 
@@ -172,7 +174,7 @@ class Player(object):
                 goal = tmp[[k[:-1], k[:-1] + 'A']]
                 goal = goal.dropna(axis=0, how='any')
                 goal = goal.astype('float').sum(axis=0)
-                p = goal[k[:-1]] / goal[k[:-1] + 'A']
+                p = goal[k[:-1]] / goal[k[:-1] + 'A'] if goal[k[:-1] + 'A'] else float('nan')
                 if not math.isnan(p):
                     p = '%.3f' % p
                     if p != '1.000':
@@ -259,6 +261,11 @@ class Player(object):
         else:
             return []
 
+    # def process(self, game, stats):
+    #     sentence = self.special_filter(game, stats)
+    #     if sentence and eval(sentence):
+    #         return game
+
     def search_by_game(self, stats, minG=1):
         if minG < 1:
             minG = 1
@@ -266,6 +273,14 @@ class Player(object):
         games = self.on_board_games(self.data).values
         if len(games) >= minG:
             resL = []
+            # pool = Pool(processes=4)
+            # multiprocessing.set_start_method('spawn')
+            # for game in games:
+            #     res = pool.apply(self.process, (game, stats, ))
+            #     if res is not None:
+            #         resL.append(res)
+            # pool.close()
+            # pool.join()
             for game in games:
                 sentence = self.special_filter(game, stats)
                 if sentence and eval(sentence):

@@ -6,6 +6,7 @@ from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 from util import gameMarkToDir, minusMinutes, playerClutchScoreDistribution, addMinutes, writeToExcel
 from pylab import *
+from tqdm import tqdm
 
 regularOrPlayoffs = ['regular', 'playoff']
 HomeOrAts = [[4, 5], [2, 1]]    # 主，客
@@ -17,7 +18,7 @@ playerInf = pickle.load(f)
 f.close()
 players = []
 for i in playerInf[1:]:
-    playerName, playerMark = i[0],i[1].split('/')[-1].rstrip('.html')
+    playerName, playerMark = i[0], i[1].split('/')[-1].rstrip('.html')
     playerName = playerName.replace(' ', '')
     playerName = playerName.replace('-', '')
     if i[2] and i[3]:
@@ -29,14 +30,14 @@ diffPlus = 5
 diffMinus = -5
 lastMins = '5:00.0'
 clutch = []
-for i in players:
-    print("starting analysing %s's games ..." % i[0], end='')
+for i in tqdm(players):
+    # print("starting analysing %s's games ..." % i[0], end='')
     playerFileDir = './data/players/' + i[1] + '/%sGames/%sGameBasicStat.pickle' % (ROP, ROP)
     if os.path.exists(playerFileDir):
         res = playerClutchScoreDistribution(i[0], i[1], HomeOrAts, diffPlus, diffMinus, lastMins, ROP)
         if res[-3]:
             clutch.append(res)
-    print('\tDone')
+    # print('\tDone')
 clutch.sort(reverse=True)
 #%%
 thres = 0
@@ -55,6 +56,15 @@ writeToExcel('clutch.xls',
 writeToExcel('clutch_.xls', 
              'score\tplayer\tfreeThrowPct\tfreeThrowMade\tfreeThrowAttempts\ttwoPtPct\ttwoPtMade\ttwoPtAttempts\tthreePtPct\tthreePtMade\tthreePtAttempts\tfieldGoalPct\tfieldGoalMade\tfieldGoalAttempts\teFG%\tTS%\n',
              clutch_)
+
+
+
+
+
+
+
+
+
 
 
 

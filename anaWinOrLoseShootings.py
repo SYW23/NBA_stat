@@ -2,6 +2,7 @@ import pickle
 import os
 import re
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 from util import LoadPickle, notEarlierThan
@@ -38,23 +39,23 @@ def diffBeforeScore(play):
     else:
         return atTeamScore - homeTeamScore
 
+
 f = open('./data/playerBasicInformation.pickle', 'rb')
 allPlayers = pickle.load(f)
 f.close()
 
-
-
-
 regularOrPlayoffs = ['regular', 'playoff']
-regularOrPlayoff = 0
+regularOrPlayoff = 1
 # player = {'playerMark':np.zeros((1, 16))}
 # 0全部1投中2投失3全部罚球4投中5投失6全部两分7投中8投失9全部三分10投中11投失12助攻两分成功13助攻两分失败14助攻三分成功15助攻三分失败
 player = {}
-lastSecs = '0:10.0'
+lastSecs = '0:24.0'
 
 
-for n, season in enumerate(range(1996, 1997)):
+for n, season in enumerate(range(1996, 2019)):
     gameDir = './data/seasons/%d_%d/%s/' % (season, season+1, regularOrPlayoffs[regularOrPlayoff])
+    if regularOrPlayoff:
+        gameDir = gameDir[:-1] + 's/'
     upROP = regularOrPlayoffs[regularOrPlayoff][0].upper() + regularOrPlayoffs[regularOrPlayoff][1:]
     summaryDir = './data/seasons/%d_%d/season%sSummary.pickle' % (season, season+1, upROP)
     summary = LoadPickle(summaryDir)
@@ -69,7 +70,7 @@ for n, season in enumerate(range(1996, 1997)):
                         # 客队/主队比分
                     diff = diffBeforeScore(play)
                     
-                    # 落后1~3分、最后五秒内
+                    # 落后1~3分、最后n秒内
                     if notEarlierThan(play[0], lastSecs) and diff != 0 and abs(diff) < 4:    # 判断分差与时间是否满足条件
                         trailDisc = play[1 if diff < 0 else 5]
                         
@@ -106,7 +107,7 @@ for n, season in enumerate(range(1996, 1997)):
                             player[playerMark][0][GOM] += 1
                             player[playerMark][0][score*3] += 1
                             player[playerMark][0][score*3+GOM] += 1
-                            print(play)
+                            # print(play)
                             
 
 
@@ -115,15 +116,18 @@ maxFG = 0
 for key, value in player.items():
     if value[0][0] > maxFG:
         maxFG = value[0][0]
-thres = maxFG * 0.2
+thres = maxFG * 0
 
 resPlayer = []
 for key, value in player.items():
     if value[0][0] > thres:
         name = findPlayerName(key, allPlayers)
         resPlayer.append([name] + list(value[0]))
-
-
+#%%
+df = pd.DataFrame(resPlayer, columns=['球员', '全部', '投中', '投失', '全部罚球', '投中', '投失',
+                                      '全部两分', '投中', '投失', '全部三分', '投中', '投失',
+                                      '助攻两分成功', '助攻两分失败', '助攻三分成功', '助攻三分失败'], index=None)
+df.to_csv('./%sResults/WoLShootings/shootings.csv' % regularOrPlayoffs[regularOrPlayoff], index=None)
 
 
 

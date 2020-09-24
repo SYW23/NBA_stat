@@ -233,7 +233,7 @@ class ShowResults(object):
 
     def sort_column(self, col, reverse):  # 点击列名排列
         l = [[self.tree.set(k, col), k] for k in self.tree.get_children('')]  # 取出所选列中每行的值
-        print(l)
+        # print(l)
         if l[0][0].isdigit() or l[0][0] == '' or '.' in l[0][0] \
                 or l[0][0][0] == '-' or l[0][0][0] == 'L' or '+' in l[0][0] \
                 or '场' in l[0][0] or '@' in l[0][0] or ':' in l[0][0] or 'r/' in l[0][0] \
