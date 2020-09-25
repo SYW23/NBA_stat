@@ -36,7 +36,7 @@ class Player(object):
                     self.cols = list(self.data.columns)
                     # print(self.pm, self.cols)
                     self.seasons = np.sum(self.data['G'] == '1')    # 赛季数
-                    self.games = self.data.shape[0]
+                    self.games = self.data['G'].notna().shape[0]
             else:
                 self.exists = False
 
@@ -44,7 +44,7 @@ class Player(object):
         # print(type(games['G'][0]), games['G'])
         return list(games[games['G'] == '1'].index) + [games.shape[0]]
 
-    def yieldSeasons(self, sgames=True):  # 按赛季返回
+    def yieldSeasons(self, sgames=True):  # 按赛季返回 sgames为False时只返回赛季年号
         games = self.on_board_games(self.data)
         games = games.reset_index(drop=True)
         ss_ix = self.season_index(games)
@@ -65,8 +65,8 @@ class Player(object):
     def yieldGames(self, season, del_absent=True):  # 按单场比赛返回
         if del_absent:
             season = self.on_board_games(season)
-        for i in season.values:
-            yield i
+        for i in season.index:
+            yield season.loc[i]
 
     def _get_item(self, item, season_index=None):
         games = self.data[self.ss_ix[season_index - 1]:self.ss_ix[season_index]] if season_index else self.data

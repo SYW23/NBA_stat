@@ -72,7 +72,7 @@ class ClutchMomentsDetector(object):
                                 playeres[p][0, s + 11] += 1
                                 playeres[p][0, 15] += 1
                         playeres[p][0, s * 3] += 1
-                        # if 'Jamal Murray' in p and s == 3:
+                        # if 'LeBron James' in p and season == 2019:
                         #     print(s, play.play, gm)
         return playeres
 
@@ -116,7 +116,7 @@ class ClutchMomentsDetector(object):
 
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoff']
-    RoP = regularOrPlayoffs[0]
+    RoP = regularOrPlayoffs[1]
     cmd = ClutchMomentsDetector(RoP, 1996, 2019)
     cmd.detect_by_season()
     # cmd.detector_all_time()
