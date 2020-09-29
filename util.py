@@ -41,11 +41,11 @@ def gameMarkToDir(gameMark, regularOrPlayoff, tp=0):    # 0: game  1: shot  2: b
     else:
         season = '%s_%s' % (str(int(seasonNum) - 1), seasonNum)
     if tp == 1:
-        gameDir = './data/seasons_shot/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_shot.pickle'
+        gameDir = 'D:/sunyiwu/stat/data/seasons_shot/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_shot.pickle'
     elif tp == 2:
-        gameDir = './data/seasons_boxscores/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_boxscores.pickle'
+        gameDir = 'D:/sunyiwu/stat/data/seasons_boxscores/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_boxscores.pickle'
     else:
-        gameDir = './data/seasons/%s/%s/' % (season, regularOrPlayoff) + gameMark + '.pickle'
+        gameDir = 'D:/sunyiwu/stat/data/seasons/%s/%s/' % (season, regularOrPlayoff) + gameMark + '.pickle'
     return gameDir
 
 

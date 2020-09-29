@@ -2,6 +2,8 @@ import sys
 sys.path.append('../')
 from util import minusMinutes, gameMarkToDir, LoadPickle
 from klasses.miscellaneous import MPTime
+import os
+from tqdm import tqdm
 
 
 class Play(object):
@@ -59,19 +61,25 @@ class Play(object):
         if len(self.play) == 6:    # 是一条完整比赛记录
             return True
         return False
-    
-    def record(self, jumpball=False):    # 返回本条记录主要内容
-        if not jumpball:
-            if self.playRecord():
-                return self.play[1] if self.play[1] else self.play[5],\
-                       1 if self.play[1] else 5
+
+    def jumpball(self):
+        j = self.play[1].split(' ')
+        # print(j)
+        if self.play[1][-3:] == 'vs.':
+            if len(j) == 3:
+                return '', '', ''
             else:
-                return '', -1
+                return j[2], '', ''
+        if '(' in j or j[-1][-1] != ')':
+            return j[2], j[4], ''
+        return j[2], j[4], j[5][1:]    # 客队跳球球员、主队跳球球员、得球球员
+
+    def record(self):    # 返回本条记录主要内容
+        if self.playRecord():
+            return self.play[1] if self.play[1] else self.play[5],\
+                   1 if self.play[1] else 5
         else:
-            if len(self.play) == 2 and 'Jump Ball' in self.play[1]:
-                return self.play[1]
-            else:
-                return ''
+            return '', -1
 
     # 有/无偏方法
     def score(self, ind=None):    # 返回得分或投失分数值
@@ -85,6 +93,8 @@ class Play(object):
             return 2
         elif '3-pt' in statement:
             return 3
+        elif 'no shot' in statement:
+            return 1
 
     # 有偏方法（有主客队之分）
     def teamPlay(self):
@@ -200,11 +210,152 @@ class Game(object):
             self.roadteam = op if self.HOA else team
         self.quarters = len(self.gameflow)
         self.playFoulTime = []
+        self.bxscr = LoadPickle(gameMarkToDir(gm, ROP, tp=2))
     
     def yieldPlay(self, qtr):
         for p in self.gameflow[qtr]:
             yield p
-        
+
+    def teamplyrs(self):
+        plyrs = [[], []]
+        for i, tm in enumerate(self.bxscr[1]):
+            assert tm[0][0] == 'players'
+            assert tm[-1][0] == 'Team Totals'
+            for p in tm[1:-1]:
+                plyrs[i].append(p[0])
+        return plyrs
+
+    def game_scanner(self, gm):
+        record = []
+        plyrs = self.teamplyrs()
+        foultype = []
+        totype = []
+        for qtr in range(self.quarters):
+            for ply in self.yieldPlay(qtr):
+                play = Play(ply, qtr)
+                if len(play.play) == 2 and 'Jump' in play.play[1]:    # 跳球记录    [客场队员、主场队员]、得球方
+                    # print(play.play)
+                    rp, hp, bp = play.jumpball()
+                    bpsn = 0 if bp in plyrs[0] else 1    # 球权 0客1主
+                    record.append({'Q': qtr, 'T': play.now(), 'JB': [rp, hp], 'BP': bpsn})    # 得球球员部分可能有特殊情况，待改
+                else:
+                    rec, ind = play.record()    # 若非长度为6的正常比赛记录行，则返回'', -1
+                    s = play.score(ind=ind)
+                    if s:    # 有得分或投丢
+                        if 'makes' in rec:    # 投进    [得分球员、得分]、球权转换
+                            record.append({'Q': qtr, 'T': play.now(), 'MK': [rec.split(' ')[0], s], 'BP': 0 if ind == 5 else 1})
+                            if 'assist' in rec:    # 助攻    助攻球员
+                                record[-1]['AST'] = rec.split(' ')[-1][:-1]
+                        else:    # 投失    [出手球员、得分]，球权暂时仍为进攻方所有
+                            record.append({'Q': qtr, 'T': play.now(), 'MS': [rec.split(' ')[0], s], 'BP': 0 if ind == 1 else 1})
+                            if 'block by' in rec:    # 盖帽    盖帽球员
+                                record[-1]['BLK'] = rec.split(' ')[-1][:-1]
+                    elif 'Offensive rebound' in rec:    # 前场篮板    前板球员、球权
+                        record.append({'Q': qtr, 'T': play.now(), 'ORB': rec.split(' ')[-1], 'BP': 0 if ind == 1 else 1})
+                    elif 'Defensive rebound' in rec:    # 后场篮板    后板球员、球权
+                        record.append({'Q': qtr, 'T': play.now(), 'DRB': rec.split(' ')[-1], 'BP': 0 if ind == 1 else 1})
+                    elif 'enters' in rec:    # 换人    [上场球员、下场球员、换人球队]
+                        tmp = rec.split(' ')
+                        record.append({'Q': qtr, 'T': play.now(), 'SWT': [tmp[0], tmp[1], 0 if tmp[0] in plyrs[0] else 1]})
+                        if len(record) > 1 and 'BP' in record[-2]:
+                            record[-1]['BP'] = 1 if record[-2]['BP'] == 1 else 0
+                    elif 'timeout' in rec:
+                        tmp = rec.split(' ')
+                        if tmp[0] == 'Official':    # 官方暂停
+                            record.append({'Q': qtr, 'T': play.now(), 'OTO': ''})
+                        elif '20' in tmp:    # 短暂停    暂停球队
+                            record.append({'Q': qtr, 'T': play.now(), 'STO': 0 if ind == 1 else 1})
+                        elif 'full' in tmp:    # 长暂停    暂停球队
+                            record.append({'Q': qtr, 'T': play.now(), 'FTO': 0 if ind == 1 else 1})
+                            if len(record) > 1 and 'BP' in record[-2]:
+                                record[-1]['BP'] = 1 if record[-2]['BP'] == 1 else 0
+                        elif tmp[0] == 'Turnover':    # excessive timeout turnover    失误球队
+                            record.append({'Q': qtr, 'T': play.now(), 'ETT': 0 if ind == 1 else 1})
+                        elif tmp[0] == 'Excess':    # Excess timeout    犯规球队（记录在对方球队位置）
+                            record.append({'Q': qtr, 'T': play.now(), 'ETO': 0 if ind == 5 else 1})
+                        else:
+                            if 'no' not in rec:
+                                print(rec, gm)
+                    elif 'foul' in rec and 'offensive' not in rec:    # 犯规（小写的进攻犯规实为失误统计）
+                        # print(rec)
+                        if 'Technical' in rec:    # 技术犯规    犯规球员
+                            record.append({'Q': qtr, 'T': play.now(), 'TF': rec.split(' ')[-1]})
+                            continue
+                        elif 'Def 3 sec' in rec:    # 防守3秒    犯规球员
+                            record.append({'Q': qtr, 'T': play.now(), 'D3T': rec.split(' ')[-1]})
+                            continue
+                        elif 'Clear path' in rec:    # clear path    犯规球员
+                            record.append({'Q': qtr, 'T': play.now(), 'CPH': rec.split(' ')[-1]})
+                            continue
+                        # assert 'drawn by' in rec
+                        tmp = rec.split(' ')
+                        ix = tmp.index('by')
+                        if tmp[0] == 'Flagrant foul type 1':    # 一级恶意犯规    犯规种类、犯规球员、造犯规球员、球权待定
+                            record.append({'Q': qtr, 'T': play.now(), 'FF1': int(tmp[3]), 'plyr': tmp[ix + 1],
+                                           'drawn': rec.split(' ')[-1][:-1] if 'drawn by' in rec else ''})
+                            continue
+                        if tmp[0] == 'Flagrant foul type 2':    # 二级恶意犯规    犯规种类、犯规球员、造犯规球员、球权待定
+                            record.append({'Q': qtr, 'T': play.now(), 'FF2': int(tmp[3]), 'plyr': tmp[ix + 1],
+                                           'drawn': rec.split(' ')[-1][:-1] if 'drawn by' in rec else ''})
+                            continue
+                        elif 'foul by' in rec:    # 犯规    犯规种类、犯规球员、造犯规球员、球权待定
+                            if rec[-2:] == 'by':
+                                continue
+                            record.append({'Q': qtr, 'T': play.now(), 'PF': ' '.join(tmp[:ix]), 'plyr': tmp[ix + 1],
+                                           'drawn': rec.split(' ')[-1][:-1] if 'drawn by' in rec else ''})
+                            if record[-1]['PF'] in ['Offensive foul']:    # 转换球权
+                                if len(record) > 1 and 'BP' in record[-2]:
+                                    record[-1]['BP'] = 1 if record[-2]['BP'] == 0 else 0
+                            elif record[-1]['PF'] in ['Shooting foul', 'Personal take foul', 'Personal foul']:    # 球权不变
+                                if len(record) > 1 and 'BP' in record[-2]:
+                                    record[-1]['BP'] = 1 if record[-2]['BP'] == 1 else 0
+                            elif record[-1]['PF'] in ['Loose ball foul']:
+                                record[-1]['BP'] = 0 if ind == 5 else 1
+                            if ' '.join(tmp[:ix]) not in foultype:
+                                foultype.append(' '.join(tmp[:ix]))
+                    elif 'Turnover' in rec:    # 失误    失误种类、失误球员、转换球权
+                        tmp = rec.split(' ')
+                        tp = rec[rec.index('(') + 1:rec.index(';')] if ';' in rec else rec[rec.index('(') + 1:-1]
+                        record.append({'Q': qtr, 'T': play.now(), 'TOV': tp, 'plyr': tmp[2], 'BP': 0 if ind == 5 else 1})
+                        if 'steal by' in rec:    # 抢断    抢断球员
+                            record[-1]['STL'] = rec.split(' ')[-1][:-1]
+                        if tp not in totype:
+                            totype.append(tp)
+                    elif 'Violation by' in rec:
+                        if 'Team' in rec:    # 球队违例    违例种类、违例球队、转换球权
+                            record.append({'Q': qtr, 'T': play.now(), 'TVL': rec[rec.index('(') + 1:-1],
+                                           'tm': 0 if ind == 1 else 1, 'BP': 0 if ind == 5 else 1})
+                        else:    # 球员违例    违例种类、违例球员、转换球权
+                            record.append({'Q': qtr, 'T': play.now(), 'PVL': rec[rec.index('(') + 1:-1],
+                                           'plyr': rec.split(' ')[2], 'BP': 0 if ind == 5 else 1})
+                    elif 'Instant' in rec:    # 若录像回放之后改判会是什么情况
+                        if 'Challenge' in rec:    # 教练挑战    挑战球队0客1主
+                            record.append({'Q': qtr, 'T': play.now(), 'CCH': 0 if ind == 1 else 1})
+                        else:    # 录像回放    0客1主
+                            record.append({'Q': qtr, 'T': play.now(), 'IRP': 0 if ind == 1 else 1})
+                            if len(record) > 1 and 'BP' in record[-2]:
+                                record[-1]['BP'] = 1 if record[-2]['BP'] == 1 else 0
+                    elif 'ejected' in rec:    # 驱逐出场    被驱逐球员
+                        record.append({'Q': qtr, 'T': play.now(), 'EJT': rec.split(' ')[0]})
+                    elif 'Defensive three seconds' in rec:    # 防守三秒    违例球员
+                        record.append({'Q': qtr, 'T': play.now(), 'D3S': rec.split(' ')[-1]})
+                    else:
+                        if rec:
+                            print(play.play, gm)
+        return sorted(totype), sorted(foultype), record
+
+    def game_analyser(self, gm, record):
+        ss = [0, 0]
+        sum_score_error = []
+        for i in record:
+            if 'MK' in i:
+                ss[i['BP'] - 1] += i['MK'][1]
+            # elif 'MS' in i:
+            #     ss[i['BP']] += i['MS'][1]
+        if ss != [x[0] for x in self.bxscr[0].values()]:
+            sum_score_error.append(gm)
+
+
 
 class GameShooting(object):
     def __init__(self, gm, ROP, HOA=None):
@@ -229,10 +380,28 @@ class GameBoxScore(object):
         self.quarters = len(self.boxes) - 5 if len(self.boxes) > 3 else 0
 
 
+if __name__ == '__main__':
+    regularOrPlayoffs = ['regular', 'playoffs']
+    i = 1
+    ft, to = [], []
+    for season in range(1996, 2020):
+        ss = '%d_%d' % (season, season + 1)
+        # print(ss)
+        for i in range(2):
+            gms = os.listdir('D:/sunyiwu/stat/data/seasons/%s/%s/' % (ss, regularOrPlayoffs[i]))
+            for gm in tqdm(gms):
+                # print('\t\t\t' + gm)
+                game = Game(gm[:-7], regularOrPlayoffs[i])
+                totmp, fttmp, record = game.game_scanner(gm[:-7])
+                game.game_analyser(gm[:-7], record)
 
-
-
-
+                ft = list(set(ft + fttmp))
+                to = list(set(to + totmp))
+    print(ft)
+    print(to)
+    for i in record:
+        print(i)
+    # game.game_analyser(record)
 
 
 

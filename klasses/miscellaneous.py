@@ -35,7 +35,7 @@ class MPTime(object):
             c -= 60
         return MPTime('%d:%02d.%d' % ((a[0] + b[0]), c, d), reverse=self.reverse)
 
-    def __le__(self, other):
+    def __le__(self, other):    # 倒计时形式的早晚比较（越小越晚）
         if self.min > other.min:
             return False
         elif self.min < other.min:

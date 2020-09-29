@@ -25,7 +25,20 @@ class ClutchMomentsDetector(object):
                         'threePtPct', 'threePtMade', 'threePtAttempts',
                         'fieldGoalPct', 'fieldGoalMade', 'fieldGoalAttempts',
                         'twoPtAsted', 'threePtAsted', 'fieldGoalAsted',
-                        'eFG%', 'TS%']
+                        'ast 2Pt', 'ast 3Pt',
+                        'eFG%', 'TS%',
+                        'ast score', 'overall score', 'games']
+        self.plyrcgs = {}    # 用于统计球员关键时刻出战场次（暂时无法统计“隐身”情况，即球员在场但无任何行为记录，因此此数字小于等于实际场次）
+
+    def onlycountonce(self, p, gm, playeres):
+        if p not in self.plyrcgs:    # 尚无统计场次
+            self.plyrcgs[p] = gm
+            playeres[p][0, -1] += 1
+        else:    # 已有统计场次
+            if self.plyrcgs[p] < gm:
+                self.plyrcgs[p] = gm
+                playeres[p][0, -1] += 1
+        return playeres
 
     def calpct(self, res):
         res['fieldGoalMade'] = res['twoPtMade'] + res['threePtMade']
@@ -36,9 +49,9 @@ class ClutchMomentsDetector(object):
         res['threePtAsted'] = res['threePtAsted'] / res['threePtMade']
         res['fieldGoalAsted'] = res['fieldGoalAsted'] / res['fieldGoalMade']
         res['eFG%'] = (res['fieldGoalMade'] + 0.5 * res['threePtMade']) / res['fieldGoalAttempts']
-        res['eFG%'].round(decimals=3)
         res['TS%'] = res['score'] / (2 * (res['fieldGoalAttempts'] + 0.44 * res['freeThrowAttempts']))
-        res['TS%'].round(decimals=3)
+        res['ast score'] = 2 * res['ast 2Pt'] + 3 * res['ast 3Pt']
+        res['overall score'] = res['score'] + 2 * res['ast 2Pt'] + 3 * res['ast 3Pt']
         return res
 
     def dict2df(self, dct):
@@ -65,15 +78,26 @@ class ClutchMomentsDetector(object):
                             p += ' %d_%d' % (season, season + 1)
                         if p not in playeres:
                             playeres[p] = np.zeros((1, len(self.columns)))
-                        if 'makes' in rec:
+                        if 'makes' in rec:    # 得分增加命中数
                             playeres[p][0, 0] += s
                             playeres[p][0, s * 3 - 1] += 1
-                            if 'assist' in rec:
+                            if 'assist' in rec:    # 受助攻
                                 playeres[p][0, s + 11] += 1
                                 playeres[p][0, 15] += 1
-                        playeres[p][0, s * 3] += 1
+                                try:
+                                    astp = self.pm2pn[rec.split(' ')[-1][:-1]]
+                                except:
+                                    astp = rec.split(' ')[-1][:-1]
+                                if season:
+                                    astp += ' %d_%d' % (season, season + 1)
+                                if astp not in playeres:
+                                    playeres[astp] = np.zeros((1, len(self.columns)))
+                                playeres[astp][0, s + 14] += 1
+                                playeres = self.onlycountonce(astp, gm[:-7], playeres)
+                        playeres[p][0, s * 3] += 1    # 得分或投失增加出手数
+                        playeres = self.onlycountonce(p, gm[:-7], playeres)
                         # if 'LeBron James' in p and season == 2019:
-                        #     print(s, play.play, gm)
+                        #     print(s, play.play, gm[:-7], self.plyrcgs['LeBron James 2019_2020'])
         return playeres
 
     def singleseason(self, season, playeres, all_time=False):
@@ -90,6 +114,7 @@ class ClutchMomentsDetector(object):
         res = pd.DataFrame(columns=['player'] + self.columns)
         for season in range(self.ss, self.es + 1):
             playeres = {}
+            self.plyrcgs = {}
             playeres = self.singleseason(season, playeres)
             tmp = self.dict2df(playeres)
             res = res.append(tmp, ignore_index=True)
@@ -103,6 +128,7 @@ class ClutchMomentsDetector(object):
         res.to_excel('./clutch_moments/%s/clutch_moments_%d_to_%d_by_season.xlsx' % ('playoff' if self.RoP else 'regular', self.ss, self.es), sheet_name='%d_to_%d' % (self.ss, self.es), index=False)
 
     def detector_all_time(self):
+        self.plyrcgs = {}
         res = pd.DataFrame(columns=['player'] + self.columns)
         playeres = {}
         for season in range(self.ss, self.es + 1):
@@ -116,9 +142,9 @@ class ClutchMomentsDetector(object):
 
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoff']
-    RoP = regularOrPlayoffs[1]
-    cmd = ClutchMomentsDetector(RoP, 1996, 2019)
-    cmd.detect_by_season()
-    # cmd.detector_all_time()
+    for i in regularOrPlayoffs:
+        cmd = ClutchMomentsDetector(i, 1996, 2019)
+        cmd.detect_by_season()
+        cmd.detector_all_time()
 
 
