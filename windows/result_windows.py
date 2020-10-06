@@ -330,10 +330,11 @@ class ShowSingleResults(ShowResults):
 
 
 class ShowGroupResults(ShowResults):
-    def __init__(self, res, columns, RP, detail=True):
+    def __init__(self, res, columns, RP, detail=True, AoS=1):
         super(ShowGroupResults, self).__init__(res, columns, RP)
         # self.columns.insert(0, 'Player')
         self.detail = detail
+        self.AoS = AoS
         self.dates = [[j[1] for j in i[1][:-2]] for i in self.res]
 
     def double(self, event):
@@ -346,7 +347,7 @@ class ShowGroupResults(ShowResults):
     def insert_table(self, tr, tb, command=False):
         self.set_tc(tr, command=True)
         for i, r_ in enumerate(tb):  # 逐条插入数据
-            r = r_[1][-2] if self.detail else r_[1]
+            r = r_[1][-2 if self.AoS else -1] if self.detail else r_[1]
             self.deal_with_tr(r)
             r = [r_[0]] + r
             tr.insert('', i, text=str(i), values=tuple(r))

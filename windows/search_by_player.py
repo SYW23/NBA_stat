@@ -212,7 +212,7 @@ class searchByPlyr(object):
                     # print(win_klass)
                     if pt == 2:
                         win_klass = ShowResults
-                    result_window = win_klass(res, list(RP.keys()), self.RoP.get(), detail=False if pt else True)
+                    result_window = win_klass(res, list(RP.keys()), self.RoP.get(), detail=False if pt else True, AoS=int(self.AoS.get()))
                     win_title = '%s %s 查询结果（按%s）' % (self.plyr_ent_value.get(),
                                                      self.RoP_dict[self.RoP.get()], self.scope.get())\
                         if pt else '%s查询结果（按%s）' % ('常规赛' if self.RoP.get() == 'regular' else '季后赛', self.scope.get())
