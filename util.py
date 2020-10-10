@@ -40,6 +40,8 @@ def gameMarkToDir(gameMark, regularOrPlayoff, tp=0):    # 0: game  1: shot  2: b
         season = '%s_%s' % (seasonNum, str(int(seasonNum) + 1))
     else:
         season = '%s_%s' % (str(int(seasonNum) - 1), seasonNum)
+    if int(month) == 10 and season == '2020_2021':
+        season = '2019_2020'
     if tp == 1:
         gameDir = 'D:/sunyiwu/stat/data/seasons_shot/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_shot.pickle'
     elif tp == 2:

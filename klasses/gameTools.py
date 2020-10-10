@@ -17,6 +17,11 @@ to = ['lost ball', 'illegal pick', 'lane violation.', 'punched ball', 'isolation
       'offensive goaltending', 'jump ball violation', 'inbound', 'kicked ball', '10 second', 'swinging elbows',
       'shot clock', 'illegal assist', 'offensive foul', 'traveling']
 
+# violation type 违例类型
+vl = ['kicked ball', 'violation', 'jump ball', 'def goaltending',
+      'illegal defense', 'no', 'delay of game', 'lane', 'double lane']
+# Violation by Team (def goaltending)最后一次出现是在1999-2000赛季，规则未知
+
 # 行为字典
 bh = {'JB': '跳球', 'BP': '球权', 'MK': '得分', 'AST': '助攻', 'MS': '投失', 'BLK': '盖帽', 'ORB': '前场篮板',
       'DRB': '后场篮板', 'SWT': '换人', 'OTO': '官方暂停', 'STO': '短暂停', 'FTO': '长暂停', 'ETT': '失误：空叫暂停',

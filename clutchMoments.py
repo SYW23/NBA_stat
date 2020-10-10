@@ -142,7 +142,7 @@ class ClutchMomentsDetector(object):
 
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoff']
-    for i in regularOrPlayoffs:
+    for i in regularOrPlayoffs[1:]:
         cmd = ClutchMomentsDetector(i, 1996, 2019)
         cmd.detect_by_season()
         cmd.detector_all_time()

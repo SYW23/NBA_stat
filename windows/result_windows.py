@@ -133,6 +133,59 @@ class ShowSingleGame(object):
         self.wd_gm.mainloop()
 
 
+class ShowTables(object):
+    def __init__(self, tb, columns, top=True):
+        self.tb = tb
+        self.columns = columns
+        if top:
+            self.wd_tb = Tk()
+        else:
+            self.wd_tb = Toplevel()
+        self.wd_tb.geometry('1000x800+100+100')
+        self.tree = None
+
+    @staticmethod
+    def special_sorting(l, reverse):  # 考虑排序各种情况
+        ast_sort = np.array([float(x[0]) for x in l])
+        out = np.argsort(ast_sort)
+        if reverse:
+            out = out[::-1]
+        return [l[x] for x in out]
+
+    def sort_column(self, col, reverse):  # 点击列名排列
+        l = [[self.tree.set(k, col), k] for k in self.tree.get_children('')]  # 取出所选列中每行的值
+        try:
+            tmp = float(l[0][0])
+            l = self.special_sorting(l, reverse)
+        except:
+            l.sort(reverse=reverse)  # 排序方式
+        [self.tree.move(k, '', index) for index, [_, k] in enumerate(l)]  # 根据排序后的索引移动
+        self.tree.heading(col, command=lambda: self.sort_column(col, 0 if reverse else 1))
+
+    def insert_table(self, tr, tb):
+        for i in self.columns:  # 定义各列列宽及对齐方式
+            tr.column(i, width=100, anchor='center')
+            tr.heading(i, text=i, command=lambda _col=i: self.sort_column(_col, 1))
+        for i, r in enumerate(tb):    # 逐条插入数据
+            tr.insert('', i, text=str(i), values=tuple(r))
+
+    def tree_generate(self):
+        self.insert_table(self.tree, self.tb)    # 结果罗列表
+        scrollbarx = Scrollbar(self.wd_tb, orient='horizontal', command=self.tree.xview)    # 滚动条
+        self.tree.configure(xscrollcommand=scrollbarx.set)
+        scrollbary = Scrollbar(self.wd_tb, orient='vertical', command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbary.set)
+        scrollbarx.place(relx=0.005, rely=0.97, relwidth=0.97, relheight=0.03)    # 布局
+        scrollbary.place(relx=0.98, rely=0.20, relwidth=0.02, relheight=0.76)
+        self.tree.place(relx=0.005, rely=0.20, relwidth=0.97, relheight=0.76)
+
+    def loop(self, text):  # 参数：结果说明文字
+        self.wd_tb.title(text)
+        self.tree = ttk.Treeview(self.wd_tb, columns=self.columns, show='headings')
+        self.tree_generate()
+        self.wd_tb.mainloop()
+
+
 class ShowResults(object):
     def __init__(self, res, columns, RP, detail=True):
         self.fontsize = 10
