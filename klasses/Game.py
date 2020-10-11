@@ -240,6 +240,7 @@ class Game(object):
             record.append({'Q': 0, 'T': '0:00.0', 'BP': 0})
             qtr_bp = 0
         for qtr in range(self.quarters):
+            time_series = [0, '', -1]    # 0连续的相同时间点的记录条数、1相同的时间点、2系列球权（一般应统一）
             if 0 < qtr < 4 and qtr == qtr_:
                 if qtr == 1 or qtr == 2:
                     # 第一节结束、第二节开始前，判断跳球记录是否缺失，若缺失，判断初始球权归属
@@ -280,6 +281,7 @@ class Game(object):
                 qtr_ += 1
             for ply in self.yieldPlay(qtr):
                 play = Play(ply, qtr)
+                # ==========开始对一条记录进行处理==========
                 if len(play.play) == 2 and 'Jump' in play.play[1]:    # 跳球记录    [客场队员、主场队员]、得球方
                     # print(play.play)
                     rp, hp, bp = play.jumpball()
@@ -366,6 +368,11 @@ class Game(object):
                         else:
                             if play.now() != '36:00.0':
                                 record.append({'Q': qtr, 'T': play.now(), 'DRB': 'Team', 'BP': 0 if ind == 1 else 1})
+                                # if len(record) > 1 and 'BP' in record[-2]:
+                                #     if record[-1]['T'] != record[-2]['T']:
+                                #         record[-1]['BP'] = 0 if ind == 1 else 1
+                                #     else:
+                                #         record[-1]['BP'] = record[-2]['BP']
                     # 换人    [上场球员、下场球员、换人球队]
                     elif 'enters' in rec:
                         tmp = rec.split(' ')
@@ -491,7 +498,7 @@ class Game(object):
                             record.append({'Q': qtr, 'T': play.now(), 'TVL': rec[rec.index('(') + 1:-1],
                                            'tm': 0 if ind == 1 else 1, 'BP': 0 if ind == 5 else 1})
                             if record[-1]['TVL'] == 'def goaltending':    # 防守干扰球，球权不做多余转换
-                                if record[-1]['T'] != record[-2]['T']:
+                                if len(record) > 1 and record[-1]['T'] != record[-2]['T']:
                                     record.pop()
                                     # print(gm, '无效TVL:', rec)
                                     continue
@@ -528,6 +535,15 @@ class Game(object):
                     else:
                         if rec:
                             print(play.play, gm)
+                # 检查时间，判断是否连续多条记录的时间点相同
+                if play.now() == time_series[1]:
+                    time_series[0] += 1
+                else:
+                    if time_series[0] < 2:
+                        for st in range(time_series[0]):
+                            pass
+                    time_series[0] = 0
+                    time_series[1] = play.now()
         return sorted(vltype), sorted(totype), sorted(foultype), record
 
     @ staticmethod
@@ -557,25 +573,29 @@ class Game(object):
         rht = [0, 1] if record[star_of_game]['BP'] else [1, 0]
         # print(record[0])
         for i in record[star_of_game:]:
-            # print(i)
+            # print(i, bp)
             if i['BP'] != bp or (len(i) == 3 and (i['T'] == '12:00.0'
                                  or i['T'] == '24:00.0' or i['T'] == '36:00.0')) or\
                     ((i['T'] == '48:00.0' or i['T'] == '53:00.0'
-                      or i['T'] == '58:00.0' or i['T'] == '63:00.0') and 'JB' in i):    # 球权交换或节初:
+                      or i['T'] == '58:00.0' or i['T'] == '63:00.0') and 'JB' in i):    # 球权交换或节初或加时赛初跳球:
                 # try:
-                #     if gm not in ['199611010NJN', '199611010ORL', '199611010VAN', '201910230PHO', '201910240DET']:
+                #     if gm not in ['199611010NJN', '199611010ORL', '199611010VAN', '201910230PHO', '201910240DET'] and \
+                #             not ((i['Q'] == 0 and i['T'] == '12:00.0') or (i['Q'] == 1 and i['T'] == '24:00.0') or
+                #                  (i['Q'] == 2 and i['T'] == '36:00.0') or (i['Q'] == 3 and i['T'] == '48:00.0') or
+                #                  (i['Q'] == 4 and i['T'] == '53:00.0') or (i['Q'] == 5 and i['T'] == '58:00.0') or
+                #                  (i['Q'] == 6 and i['T'] == '63:00.0') or (i['Q'] == 7 and i['T'] == '68:00.0')):
                 #         assert 'MS' not in i
                 # except:
-                #     print(gm, i)
+                #     print(gm, i, bp)
                 #     raise KeyError
                 if not ((i['Q'] == 0 and i['T'] == '12:00.0') or (i['Q'] == 1 and i['T'] == '24:00.0') or
                         (i['Q'] == 2 and i['T'] == '36:00.0') or (i['Q'] == 3 and i['T'] == '48:00.0') or
                         (i['Q'] == 4 and i['T'] == '53:00.0') or (i['Q'] == 5 and i['T'] == '58:00.0') or
-                        (i['Q'] == 6 and i['T'] == '63:00.0') or (i['Q'] == 7 and i['T'] == '68:00.0')):
+                        (i['Q'] == 6 and i['T'] == '63:00.0') or (i['Q'] == 7 and i['T'] == '68:00.0')):    # 排除节末
                     exchange += 0.5
                     bp = i['BP']
                     rht[bp] += 1
-                    print(i, rht)
+                    # print(i, rht)
         print(exchange, rht)
 
     def game_analyser(self, gm, record):    # 球队、球员单场比赛技术统计，并与实际对比
@@ -705,21 +725,21 @@ class GameBoxScore(object):
 
 
 if __name__ == '__main__':
-    # regularOrPlayoffs = ['regular', 'playoffs']
-    # i = 1
-    # ft, to, vl = [], [], []
-    # count_games = 0
-    # for season in range(2019, 2020):
-    #     ss = '%d_%d' % (season, season + 1)
-    #     # print(ss)
-    #     for i in range(2):
-    #         gms = os.listdir('D:/sunyiwu/stat/data/seasons/%s/%s/' % (ss, regularOrPlayoffs[i]))
-    #         for gm in tqdm(gms):
-    #             count_games += 1
-    #             # print('\t\t\t' + gm)
-    #             game = Game(gm[:-7], regularOrPlayoffs[i])
-    #             vltmp, totmp, fttmp, record = game.game_scanner(gm[:-7])
-    #             game.pace(gm[:-7], record)
+    regularOrPlayoffs = ['regular', 'playoffs']
+    i = 1
+    ft, to, vl = [], [], []
+    count_games = 0
+    for season in range(2019, 2020):
+        ss = '%d_%d' % (season, season + 1)
+        # print(ss)
+        for i in range(2):
+            gms = os.listdir('D:/sunyiwu/stat/data/seasons/%s/%s/' % (ss, regularOrPlayoffs[i]))
+            for gm in tqdm(gms):
+                count_games += 1
+                # print('\t\t\t' + gm)
+                game = Game(gm[:-7], regularOrPlayoffs[i])
+                vltmp, totmp, fttmp, record = game.game_scanner(gm[:-7])
+                game.pace(gm[:-7], record)
 
     #             vltmp, totmp, fttmp, record = game.game_scanner(gm[:-7])
     #             game.game_analyser(gm[:-7], record)
@@ -739,13 +759,13 @@ if __name__ == '__main__':
     # print(to)
     # print(vl)
 
-    gm = '202009300LAL'
-    game = Game(gm, 'playoffs')
-    _, _, _, record = game.game_scanner(gm)
-    for i in record:
-        print(i)
-    game.game_analyser(gm, record)
-    game.pace(gm, record)
+    # gm = '202009300LAL'
+    # game = Game(gm, 'playoffs')
+    # _, _, _, record = game.game_scanner(gm)
+    # for i in record:
+    #     print(i)
+    # game.game_analyser(gm, record)
+    # game.pace(gm, record)
 
 
 

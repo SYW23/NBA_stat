@@ -22,6 +22,24 @@ class MPTime(object):
     def __repr__(self):
         return '%d:%02d.%d' % (self.min, self.sec, self.msc)
 
+    def __sub__(self, other):
+        a = [self.min, self.sec, self.msc]
+        b = [other.min, other.sec, other.msc]
+        if a[0] - b[0] >= 0:
+            if a[2] < b[2]:
+                a[1] -= 1
+                d = a[2] + 10 - b[2]
+            else:
+                d = a[2] - b[2]
+            if a[1] < b[1]:
+                a[0] -= 1
+                c = a[1] + 60 - b[1]
+            else:
+                c = a[1] - b[1]
+            return MPTime('%d:%02d.%d' % ((a[0] - b[0]), c, d), reverse=self.reverse)
+        else:
+            return ''
+
     def __add__(self, other):
         a = [self.min, self.sec, self.msc]
         b = [other.min, other.sec, other.msc]
@@ -56,6 +74,12 @@ class MPTime(object):
         ss /= (60 * n)
         ss = math.modf(ss)
         return '%d:%02d' % (ss[1], round(ss[0] * 60))
+
+    def average_acc(self, n):    # 返回精确到秒"mm:ss"
+        ss = eval(str(self.min) + '*60+' + str(self.sec))
+        ss /= (60 * n)
+        ss = math.modf(ss)
+        return '%d:%.1f' % (ss[1], ss[0] * 60)
 
 
 class WinLoseCounter(object):
