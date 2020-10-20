@@ -209,7 +209,7 @@ class searchByPlyr(object):
                 if res:
                     RP = regular_items_en if self.RoP.get() == 'regular' else playoff_items_en
                     win_klass = ShowSingleResults if pt else ShowGroupResults
-                    # print(win_klass)
+                    print(win_klass)
                     if pt == 2:
                         win_klass = ShowResults
                     result_window = win_klass(res, list(RP.keys()), self.RoP.get(), detail=False if pt else True, AoS=int(self.AoS.get()))

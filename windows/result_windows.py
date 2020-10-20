@@ -348,7 +348,7 @@ class ShowResults(object):
 
 
 class ShowSingleResults(ShowResults):
-    def __init__(self, res, columns, RP, detail=True):
+    def __init__(self, res, columns, RP, detail=True, AoS=None):
         super(ShowSingleResults, self).__init__(res, columns, RP)
         self.tree_as = None
 

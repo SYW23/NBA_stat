@@ -26,6 +26,9 @@ for season in range(2020, 2021):
     regularOrPlayoff = 0
     for index, monthURL in enumerate(monthURLs):
         print(monthURL)
+        regularOrPlayoff = 0
+        if monthURL == 'https://www.basketball-reference.com/leagues/NBA_2020_games-september.html':
+            regularOrPlayoff = 1
         # 月份
         print('\tstarting to record month %s' % monthURL.split('-')[-1][:-5])
         monthPage = getCode(monthURL, 'UTF-8')

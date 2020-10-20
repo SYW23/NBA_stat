@@ -9,7 +9,7 @@ import re
 import time
 
 
-for season in range(2014, 2020):
+for season in range(2020, 2021):
     refs = LoadPickle('./data/refereeURLs.pickle')
     res = []    # [gm, Referees, Attendance, Time of Game]
     ss = '%d_%d' % (season-1, season)

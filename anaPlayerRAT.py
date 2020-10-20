@@ -73,7 +73,7 @@ class playerRAT(object):
 
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoff']
-    RoP = regularOrPlayoffs[0]
+    RoP = regularOrPlayoffs[1]
     rat = playerRAT(RoP)
     # rat.singleplayer('jamesle01')
     rat.players()
