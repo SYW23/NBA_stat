@@ -8,7 +8,7 @@ import math
 from util import LoadPickle, gameMarkToDir, writeToPickle
 
 
-class GameDetailWindow(object):
+class GameDetailEditor(object):
     def __init__(self, gm='201904050UTA', title='play-by-play修改器'):
         self.title = title
         self.columns = ['时间', '客队记录', 'r', '比分', 'h', '主队记录']
@@ -26,7 +26,7 @@ class GameDetailWindow(object):
         self.qtr = StringVar()
         self.qtr.set(None)
         self.qtrs = 0
-        self.qtr_fm = Frame(self.wd_gd)
+        self.qtr_fm = LabelFrame(self.wd_gd, text='节次', labelanchor='nw')
         self.qtr_btns = []
         self.qtr_text = ['1st', '2nd', '3rd', '4th', 'OT1', 'OT2', 'OT3', 'OT4']
         self.select_rows = [0, []]
@@ -38,10 +38,18 @@ class GameDetailWindow(object):
         self.RoW_button['text'] = '编辑模式 点击切换' if self.RoW_int else '阅读模式 点击切换'
         print(self.RoW_int)
 
-    def qtr_dsp(self, ori=0):
-        # print(self.gameflow[int(self.qtr.get())])
+    def qtr_redsp(self):
+        items = self.tree.get_children()
+        [self.tree.delete(item) for item in items]
+        self.insert_table(self.tree, self.gameflow[int(self.qtr.get())])
+        self.all_rows += len(self.gameflow[int(self.qtr.get())])
+
+    def reset_selection(self):
         self.select_rows[0] = 0
         self.select_rows[1] = []
+
+    def qtr_dsp(self, ori=0):
+        self.reset_selection()
         print('正在查看第%d节' % (int(self.qtr.get()) + 1))
         items = self.tree.get_children()
         [self.tree.delete(item) for item in items]
@@ -49,6 +57,41 @@ class GameDetailWindow(object):
         if not ori:
             self.all_rows += len(self.gameflow[self.ori_qtr])
         self.ori_qtr = int(self.qtr.get())
+
+    def ofdefexc_fc(self):
+        assert self.select_rows[0] == 1
+        rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
+        ind = 1 if rec[1] else 5
+        flag = 1
+        if 'Offensive rebound' in rec[ind]:
+            rec[ind] = rec[ind].replace('Offensive rebound', 'Defensive rebound')
+            self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
+        elif 'Defensive rebound' in rec[ind]:
+            rec[ind] = rec[ind].replace('Defensive rebound', 'Offensive rebound')
+            self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
+        else:
+            flag = 0
+            print('无篮板纪录')
+        if flag:
+            self.qtr_redsp()
+        self.reset_selection()
+
+    def exc1with5_fc(self):
+        assert self.select_rows[0] == 1
+        rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
+        rec[1], rec[5] = rec[5], rec[1]
+        self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
+        self.qtr_redsp()
+        self.reset_selection()
+
+    def oneoftwo_fc(self):
+        assert self.select_rows[0] == 1
+        rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
+        ind = 1 if rec[1] else 5
+        rec[ind] = rec[ind].replace('1 of 1', '1 of 2')
+        self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
+        self.qtr_redsp()
+        self.reset_selection()
 
     def click(self, event):
         if self.RoW_int:
@@ -64,12 +107,8 @@ class GameDetailWindow(object):
                 print('第%s节，第%d行' % (self.qtr.get(), int(self.tree.selection()[0][1:], 16) - 1 - self.all_rows))
                 self.gameflow[int(self.qtr.get())][self.select_rows[1][0]], self.gameflow[int(self.qtr.get())][self.select_rows[1][1]] = \
                     self.gameflow[int(self.qtr.get())][self.select_rows[1][1]], self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
-                items = self.tree.get_children()
-                [self.tree.delete(item) for item in items]
-                self.insert_table(self.tree, self.gameflow[int(self.qtr.get())])
-                self.all_rows += len(self.gameflow[int(self.qtr.get())])
-                self.select_rows[0] = 0
-                self.select_rows[1] = []
+                self.qtr_redsp()
+                self.reset_selection()
 
     def display_pbp_enter(self, event):
         self.display_pbp()
@@ -95,7 +134,10 @@ class GameDetailWindow(object):
                 self.qtr_btns.append(Radiobutton(self.qtr_fm, text=self.qtr_text[i], value=i, command=self.qtr_dsp,
                                                  variable=self.qtr, width=10, height=2))
                 self.qtr_btns[i].grid(row=1, column=i)
-            self.qtr.set('0')
+            if self.title == 'play-by-play修改器':
+                self.qtr.set('0')
+            else:
+                self.qtr.set(str(int(self.title[1]) - 1))
             self.qtr_dsp(ori=1)
         else:
             messagebox.showinfo('提示', '请输入game mark！')
@@ -137,9 +179,6 @@ class GameDetailWindow(object):
         if self.RoW_int:
             self.RoW()
 
-    def quit_fc(self):
-        self.wd_gd.quit()
-
     def loop(self):  # 参数：结果说明文字
         gm_label = Label(self.wd_gd, text='Game Mark', font=('SimHei', 13), width=15, height=1, anchor='e')
         gm_ent = Entry(self.wd_gd, width=20, textvariable=self.gm, font=('SimHei', 13))
@@ -151,18 +190,24 @@ class GameDetailWindow(object):
                                  compound='center', cursor='hand2', command=self.RoW, font=('SimHei', 13))
         clear_button = Button(self.wd_gd, text='清除', width=100, height=20,
                              compound='center', cursor='hand2', command=self.clear_fc, font=('SimHei', 13))
-        quit_button = Button(self.wd_gd, text='退出', width=100, height=20,
-                              compound='center', cursor='hand2', command=self.quit_fc, font=('SimHei', 13))
+        ofdefexc_button = Button(self.wd_gd, text='攻防板', width=100, height=20,
+                                compound='center', cursor='hand2', command=self.ofdefexc_fc, font=('SimHei', 13))
+        exc1with5_button = Button(self.wd_gd, text='交换', width=100, height=20,
+                                compound='center', cursor='hand2', command=self.exc1with5_fc, font=('SimHei', 13))
+        oneoftwo_button = Button(self.wd_gd, text='1of2', width=100, height=20,
+                                  compound='center', cursor='hand2', command=self.oneoftwo_fc, font=('SimHei', 13))
         gm_label.place(relx=0.02, rely=0.04, relwidth=0.1, relheight=0.04)
         gm_ent.place(relx=0.15, rely=0.04, relwidth=0.2, relheight=0.04)
         display_button.place(relx=0.38, rely=0.04, relwidth=0.08, relheight=0.04)
         write_to_button.place(relx=0.49, rely=0.04, relwidth=0.08, relheight=0.04)
-        self.RoW_button.place(relx=0.8, rely=0.04, relwidth=0.18, relheight=0.04)
+        self.RoW_button.place(relx=0.81, rely=0.04, relwidth=0.18, relheight=0.04)
         clear_button.place(relx=0.6, rely=0.04, relwidth=0.08, relheight=0.04)
-        quit_button.place(relx=0.71, rely=0.04, relwidth=0.08, relheight=0.04)
+        ofdefexc_button.place(relx=0.71, rely=0.04, relwidth=0.08, relheight=0.04)
+        exc1with5_button.place(relx=0.71, rely=0.1, relwidth=0.08, relheight=0.04)
+        oneoftwo_button.place(relx=0.6, rely=0.1, relwidth=0.08, relheight=0.04)
 
         self.wd_gd.title(self.title)
-        self.qtr_fm.place(relx=0.25, rely=0.1, relwidth=0.5, relheight=0.04)
+        self.qtr_fm.place(relx=0.07, rely=0.09, relwidth=0.5, relheight=0.08)
         self.tree = ttk.Treeview(self.wd_gd, columns=self.columns, show='headings')
         self.tree.bind('<ButtonRelease-1>', self.click)
         self.tree_generate([])
@@ -171,5 +216,5 @@ class GameDetailWindow(object):
 
 
 if __name__ == '__main__':
-    playbyplay_editor_window = GameDetailWindow()
+    playbyplay_editor_window = GameDetailEditor()
     playbyplay_editor_window.loop()
