@@ -54,6 +54,11 @@ class MPTime(object):
         return MPTime('%d:%02d.%d' % ((a[0] + b[0]), c, d), reverse=self.reverse)
 
     def __le__(self, other):    # 倒计时形式的早晚比较（越小越晚）
+        '''
+        a = MPTime('46:09.2')
+        b = MPTime('47:09.1')
+        print(a <= b)    # True
+        '''
         if self.min > other.min:
             return False
         elif self.min < other.min:
@@ -80,6 +85,9 @@ class MPTime(object):
         ss /= (60 * n)
         ss = math.modf(ss)
         return '%d:%.1f' % (ss[1], ss[0] * 60)
+
+    def secs(self):
+        return self.min * 60 + self.sec
 
 
 class WinLoseCounter(object):

@@ -246,10 +246,3 @@ print('共%d名球员' % len(plyrs))
 print(exchange_plays)
 print(MSerror)
 writeToPickle('./data/playerStealEnforce.pickle', plyrs)
-# gm = '202009300LAL'
-# game = Game(gm, 'playoffs')
-# _, _, _, record = game.game_scanner(gm)
-# for i in record:
-#     print(i)
-# game.game_analyser(gm, record)
-# game.pace(gm, record)

@@ -19,6 +19,8 @@ class GameDetailEditor(object):
         self.gm = StringVar()
         self.gm.set(gm)
         self.wd_gd.bind("<Return>", self.display_pbp_enter)
+        self.wd_gd.bind("<Escape>", self.xquit)
+        self.wd_gd.bind("<space>", self.xwrite2file)
         self.gameflow = None
         self.RoW_button = None
         self.RoW_int = 0    # 0阅读1编辑
@@ -32,6 +34,12 @@ class GameDetailEditor(object):
         self.select_rows = [0, []]
         self.all_rows = 0
         self.file_name = None
+
+    def xquit(self, event):
+        self.wd_gd.destroy()
+
+    def xwrite2file(self, event):
+        self.write2file()
 
     def RoW(self):
         self.RoW_int = 0 if self.RoW_int else 1
@@ -138,6 +146,7 @@ class GameDetailEditor(object):
                 self.qtr.set('0')
             else:
                 self.qtr.set(str(int(self.title[1]) - 1))
+                self.RoW()
             self.qtr_dsp(ori=1)
         else:
             messagebox.showinfo('提示', '请输入game mark！')
@@ -163,6 +172,9 @@ class GameDetailEditor(object):
         self.tree.configure(xscrollcommand=scrollbarx.set)
         scrollbary = Scrollbar(self.wd_gd, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbary.set)
+        # scrollbary.configure(command=self.tree.yview)
+        # scrollbary.set(0.5, 0.5)
+        # print(self.tree.yview())
         scrollbarx.place(relx=0.005, rely=0.97, relwidth=0.97, relheight=0.03)    # 布局
         scrollbary.place(relx=0.98, rely=0.20, relwidth=0.02, relheight=0.76)
         self.tree.place(relx=0.005, rely=0.20, relwidth=0.97, relheight=0.76)

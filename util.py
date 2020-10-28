@@ -62,7 +62,7 @@ def nowTime(index, playTime):
     return now
 
 
-# 比较时间早晚（判断A是否晚于B）
+# 比较时间早晚（倒计时形态下判断A是否晚于B，A晚即数值更小时，返回True）
 def notEarlierThan(A, B):
     Am, As, Ams = [int(x) for x in [A[:-5], A[-4:-2], A[-1]]]
     Bm, Bs, Bms = [int(x) for x in [B[:-5], B[-4:-2], B[-1]]]
