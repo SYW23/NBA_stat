@@ -4,8 +4,8 @@ from klasses.Game import Game
 from klasses.miscellaneous import MPTime
 
 
-gm = '201305060SAS'
-game = Game(gm, 'playoffs')
+gm = '200102280DEN'
+game = Game(gm, 'regular')
 # print(game.teamplyrs())
 _, _, _, record = game.game_scanner(gm)
 for i in record:

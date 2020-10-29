@@ -96,7 +96,17 @@ class GameDetailEditor(object):
         assert self.select_rows[0] == 1
         rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
         ind = 1 if rec[1] else 5
-        rec[ind] = rec[ind].replace('1 of 1', '1 of 2')
+        rec[ind] = rec[ind].replace('1 of 2', '1 of 1')
+        self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
+        self.qtr_redsp()
+        self.reset_selection()
+
+    def techft_fc(self):
+        assert self.select_rows[0] == 1
+        rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
+        ind = 1 if rec[1] else 5
+        # assert 'free throw' in rec[ind]
+        rec[ind] = rec[ind].replace('no shot', 'free throw flagrant 2 of 2')
         self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
         self.qtr_redsp()
         self.reset_selection()
@@ -208,6 +218,8 @@ class GameDetailEditor(object):
                                 compound='center', cursor='hand2', command=self.exc1with5_fc, font=('SimHei', 13))
         oneoftwo_button = Button(self.wd_gd, text='1of2', width=100, height=20,
                                   compound='center', cursor='hand2', command=self.oneoftwo_fc, font=('SimHei', 13))
+        techft_button = Button(self.wd_gd, text='techft', width=100, height=20,
+                                  compound='center', cursor='hand2', command=self.techft_fc, font=('SimHei', 13))
         gm_label.place(relx=0.02, rely=0.04, relwidth=0.1, relheight=0.04)
         gm_ent.place(relx=0.15, rely=0.04, relwidth=0.2, relheight=0.04)
         display_button.place(relx=0.38, rely=0.04, relwidth=0.08, relheight=0.04)
@@ -217,6 +229,7 @@ class GameDetailEditor(object):
         ofdefexc_button.place(relx=0.71, rely=0.04, relwidth=0.08, relheight=0.04)
         exc1with5_button.place(relx=0.71, rely=0.1, relwidth=0.08, relheight=0.04)
         oneoftwo_button.place(relx=0.6, rely=0.1, relwidth=0.08, relheight=0.04)
+        techft_button.place(relx=0.82, rely=0.1, relwidth=0.08, relheight=0.04)
 
         self.wd_gd.title(self.title)
         self.qtr_fm.place(relx=0.07, rely=0.09, relwidth=0.5, relheight=0.08)

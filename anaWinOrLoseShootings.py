@@ -27,9 +27,9 @@ num_items = 19
 lastSecs = '0:24.0'
 cmp1 = 1    # 0->出手前落后（不包括平局） 1->出手前落后或平局
 cmp2 = 1    # 0->若命中则反超（不包括追平） 1->若命中则追平或反超
-count_games, count_cgames = 0, []
 
-for i in range(1, 2):
+for i in range(0, 2):
+    count_games, count_cgames = 0, []
     plyrs = {}  # plyrs = {'playerMark': [np.zeros((1, 19)), [[出手场次], [关键场次]]]}
     # 0命中率1投中2出手3罚球命中率4罚球投中5罚球出手6两分命中率7两分投中8两分出手9三分命中率10三分投中11三分出手
     # 12助攻两分13助攻三分14盖帽15总得分16负责得分17eFG%18TS%
@@ -53,6 +53,7 @@ for i in range(1, 2):
                     ix -= 1
                 ft = [-1, -1, -1]
                 ftt = [-1, -1]
+                ftplus = [-1, -1, -1, -1, '']    # 第4个元素用于判断罚球方与运动战投篮出手方是否一致，第5个元素用于记录罚球人
                 while MPTime(record[ix]['T']) >= timetd and record[ix]['Q'] == lastqtr - qtr:
                     tmp = record[ix]
                     if 'MK' in tmp or 'MS' in tmp:
@@ -62,7 +63,10 @@ for i in range(1, 2):
                         diff = diffBeforeScore(tmp, GoM, KoS)    # 出手前分差
                         # 处理罚球情况
                         if s == 1:
-                            if tmp['D'][1] > 1:    # 非+1罚球
+                            if ftplus[2] == 0:
+                                # print('非+1罚球情况', gm, tmp, GoM, KoS, s, diff, lastsec, lastqtr, timetd, ix)
+                                ftplus = [-1, -1, -1, -1, '']
+                            if tmp['D'][1] > 1:    # 非+1罚球，多罚球
                                 if ft == [-1, -1, -1]:
                                     ft = [0, 1, 0]
                                 else:
@@ -72,19 +76,55 @@ for i in range(1, 2):
                                 if tmp['D'][0] == 1:
                                     ft[2] = 1
                             else:
-                                if tmp['M'] != '':
+                                if tmp['M'] != '':    # 非+1罚球，单罚球
                                     ftt = [0, 1]
                                     if GoM:
                                         ftt[0] += 1
+                                else:    # +1罚球
+                                    if gm != '201710200MIN.pickle' and not \
+                                            ('PF' in record[ix - 1] and record[ix - 1]['PF'] in ['Away from play foul', 'Inbound foul']):
+                                        ftplus = [0, 1, 0, tmp[KoS][2], tmp[KoS][0]]
+                                        if gm == '201611160DEN.pickle':
+                                            ftplus[4] = 'bookede01'
+                                        if gm == '200112210GSW.pickle':
+                                            ftplus = [-1, -1, -1, -1, '']
+                                        if GoM:
+                                            ftplus[0] += 1
+                                    else:
+                                        # print('Away from play', gm, tmp, GoM, KoS, s, diff, lastsec, lastqtr, timetd, ix)
+                                        ftt = [0, 1]
+                                        if GoM:
+                                            ftt[0] += 1
+                        else:
+                            if ftplus[2] == 0:    # 此次2/3分投篮后有+1罚球
+                                if ftplus[3] == tmp[KoS][2] and tmp['BP'] == ftplus[3]:
+                                    # print(gm, tmp, GoM, KoS, s, diff, lastsec, lastqtr, timetd, ix)
+                                    assert 'FF1' in record[ix + 1] or 'PF' in record[ix + 1] and \
+                                           (record[ix + 1]['PF'] == 'Shooting foul' or record[ix + 1]['PF'] == 'Shooting block foul') and \
+                                           tmp[KoS][0] == ftplus[4]    # 投篮犯规且投篮与罚球人一致
+                                    ftplus[2] = 1
+                                else:
+                                    # print('不一致', gm, tmp, GoM, KoS, s, diff, lastsec, lastqtr, timetd, ix)
+                                    ftplus = [-1, -1, -1, -1, '']
                         if ft[2] == 1:    # 有多个罚球且统计完整
-                            assert s == 1 and tmp['D'][1] == ft[1]
+                            if s == 1 and tmp['D'][1] != ft[1]:
+                                if not (('TOV'in record[ix + 1] and record[ix + 1]['TOV'] in ['offensive goaltending', 'turnover', 'lane violation', 'lane violation.'] and record[ix + 1]['BP'] != tmp['BP']) or
+                                        ('TOV' in record[ix + 2] and record[ix + 2]['TOV'] in ['lane violation.', 'lane', 'turnover', 'offensive goaltending'] and record[ix + 2]['BP'] != tmp['BP']) or
+                                        ('PVL' in record[ix + 1] and record[ix + 1]['PVL'] == 'double lane') or
+                                        ('PVL' in record[ix + 2] and record[ix + 2]['PVL'] == 'lane') or
+                                        'JB'in record[ix + 1]):
+                                    print(gm, tmp, ft)
                             s = ft[1]    # 将s暂时改为此次罚球总数
+                        if ftplus[2] == 1:
+                            s += 1
                         # if gm == '201305060SAS.pickle':
                         #     print(tmp, GoM, KoS, s, diff, lastsec, lastqtr, timetd)
                         sentence = '0 %s %d + %d %s %d' % (('<=' if cmp2 else '<'), diff, s, ('<=' if cmp1 else '<'), s)
                         judge = eval(sentence)
                         if ft[2] == 1:    # s改回1
                             s = 1
+                        elif ftplus[2] == 1:    # s改回
+                            s -= 1
                         if judge:    # 认定为关键出手：出手前落后或平局，进球则追平或反超
                             # 统计关键比赛数量
                             if gm not in count_cgames:
@@ -113,8 +153,8 @@ for i in range(1, 2):
                                     pm = tmp[KoS][0]
                                     if pm not in plyrs:
                                         plyrs[pm] = [np.zeros((1, num_items)), [[], []]]
-                                    plyrs[pm][0][0, 4] += ft[0]
-                                    plyrs[pm][0][0, 5] += ft[1]
+                                    plyrs[pm][0][0, 4] += ftt[0]
+                                    plyrs[pm][0][0, 5] += ftt[1]
                                     ftt = [-1, -1]
                             else:
                                 pm = tmp[KoS][0]
@@ -127,6 +167,11 @@ for i in range(1, 2):
                                 if GoM:
                                     plyrs[pm][0][0, 1] += 1
                                     plyrs[pm][0][0, tmp[KoS][1] * 3 + 1] += 1
+                                if ftplus[2] == 1:
+                                    # print('成立', gm, tmp, GoM, KoS, s, diff, lastsec, lastqtr, timetd, ix)
+                                    plyrs[pm][0][0, 4] += ftplus[0]
+                                    plyrs[pm][0][0, 5] += ftplus[1]
+                                    ftplus = [-1, -1, -1, -1, '']
                                 # 出手球员记录关键出手场次
                                 if gm not in plyrs[pm][1][0]:
                                     plyrs[pm][1][0].append(gm)
@@ -145,6 +190,8 @@ for i in range(1, 2):
                                 ft = [-1, -1, -1]
                             elif ftt[1] == 1:
                                 ftt = [-1, -1]
+                            elif ftplus[2] == 1:
+                                ftplus = [-1, -1, -1, -1, '']
                     ix -= 1
     td = 5 if i else 10
     ks = list(plyrs.keys())
@@ -169,6 +216,8 @@ for i in range(1, 2):
     df['负责得分'] = df['罚球投中'] + 2 * df['两分投中'] + 3 * df['三分投中'] + 2 * df['助攻两分'] + 3 * df['助攻三分']
     df['eFG%'] = (df['投中'] + 0.5 * df['三分投中']) / df['出手']
     df['TS%'] = df['总得分'] / (2 * (df['出手'] + 0.44 * df['罚球出手']))
+    df['每场得分'] = df['总得分'] / df['关键场次']
+    df['每场负责得分'] = df['负责得分'] / df['关键场次']
     df = df.sort_values(by='总得分', ascending=False)
     # print(df)
     df.to_csv('./win_or_lose/%s_最后%d秒winorloseshootings.csv' % (regularOrPlayoffs[i], MPTime(lastSecs).secs()), index=None)

@@ -246,10 +246,8 @@ class Game(object):
                                                 else:
                                                     record[x - 1]['BP'] = 0 if record[-1]['BP'] else 1
                                                     x -= 1
-                                    # if (gm == '202001200ATL' and play.now() == '28:55.0') or (gm == '202001240SAS' and play.now() == '47:41.0'):
-                                    #     record[-1]['BP'] = 1
-                                    # if (gm == '202008110WAS' and play.now() == '32:24.0'):
-                                    #     record[-1]['BP'] = 0
+                                    if gm == '201710200MIN' and play.now() == '47:55.0':
+                                        record[-1]['BP'] = 0
                                 elif 'clear path' in rec:  # clear path罚球，球权不转换
                                     record[-1]['BP'] = 0 if record[-1]['MK'][0] in plyrs[0] else 1
                             if record[-1]['MK'][1] > 1 and gm[:4] >= '2019':
