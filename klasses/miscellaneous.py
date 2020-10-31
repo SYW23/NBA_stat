@@ -89,6 +89,9 @@ class MPTime(object):
     def secs(self):
         return self.min * 60 + self.sec
 
+    def mf(self):
+        return self.min + self.sec / 60
+
 
 class WinLoseCounter(object):
     def __init__(self, single, strwl=''):

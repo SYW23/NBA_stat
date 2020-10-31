@@ -31,7 +31,13 @@ def yieldGames(gs):
 
 
 # 由gameMark推导出比赛文件目录
-def gameMarkToDir(gameMark, regularOrPlayoff, tp=0):    # 0: game  1: shot  2: boxscore
+def gameMarkToDir(gameMark, regularOrPlayoff, tp=0):
+    '''
+    :param gameMark: gm
+    :param regularOrPlayoff: 'regular' or 'playoff(s)'
+    :param tp: 0->game  1->shot  2->boxscore  3->scanned
+    :return:
+    '''
     if regularOrPlayoff == 'playoff':
         regularOrPlayoff = 'playoffs'
     seasonNum = gameMark[:4]
@@ -46,9 +52,28 @@ def gameMarkToDir(gameMark, regularOrPlayoff, tp=0):    # 0: game  1: shot  2: b
         gameDir = 'D:/sunyiwu/stat/data/seasons_shot/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_shot.pickle'
     elif tp == 2:
         gameDir = 'D:/sunyiwu/stat/data/seasons_boxscores/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_boxscores.pickle'
+    elif tp == 3:
+        gameDir = 'D:/sunyiwu/stat/data/seasons_scanned/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_scanned.pickle'
     else:
         gameDir = 'D:/sunyiwu/stat/data/seasons/%s/%s/' % (season, regularOrPlayoff) + gameMark + '.pickle'
     return gameDir
+
+
+def playerMarkToDir(pm, regularOrPlayoff, tp=0):
+    '''
+    :param pm: pm
+    :param regularOrPlayoff: 'regular' or 'playoff(s)'
+    :param tp: 0->games  1->career
+    :return:
+    '''
+    if os.path.exists('D:/sunyiwu/stat/data/players/%s/%sGames' % (pm, regularOrPlayoff)):
+        if tp == 1:
+            plyrDir = 'D:/sunyiwu/stat/data/players/%s/%sGames/%sSaCAaS.pickle' % (pm, regularOrPlayoff, regularOrPlayoff)
+        else:
+            plyrDir = 'D:/sunyiwu/stat/data/players/%s/%sGames/%sGameBasicStat.pickle' % (pm, regularOrPlayoff, regularOrPlayoff)
+        return plyrDir
+    else:
+        return ''
 
 
 # 计算当前比赛时间（精确到.1秒）
@@ -133,6 +158,11 @@ def minusMinutes(a, b):
 
 # 保存pickle数据文件
 def writeToPickle(fileName, content):
+    '''
+    :param fileName: 文件名
+    :param content: 要写入的内容
+    :return:
+    '''
     f = open(fileName, 'wb')
     pickle.dump(content, f)
     f.close()

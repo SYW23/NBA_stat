@@ -1,6 +1,6 @@
 import sys
 sys.path.append('../')
-from util import minusMinutes, gameMarkToDir, LoadPickle
+from util import minusMinutes, gameMarkToDir, LoadPickle, writeToPickle
 from klasses.miscellaneous import MPTime
 from klasses.Play import Play
 from windows.tools import GameDetailEditor
@@ -418,8 +418,8 @@ class Game(object):
                         elif 'Teamfoul' in rec:  # 2000赛季后无此项
                             # if play.now() == record[-1]['T']:
                             if rec[-4:] != 'Team':
-                                record.append({'Q': qtr, 'T': play.now(), 'TOV': 'Offensive foul',
-                                               'plyr': tmp[-1], 'BP': 1 if tmp[-1] in plyrs[0] else 0})
+                                record.append({'Q': qtr, 'T': play.now(), 'TOV': 'Offensive foul', 'plyr': tmp[ix + 1],
+                                               'drawn': rec.split(' ')[-1][:-1] if 'drawn by' in rec else '', 'BP': 1 if tmp[-1] in plyrs[0] else 0})
                             else:
                                 record.append({'Q': qtr, 'T': play.now(), 'TF': 'Teamfoul', 'plyr': 'Team', 'BP': record[-1]['BP']})
                                 # record.append({'Q': qtr, 'T': play.now(), 'PF': 'Teamfoul', 'plyr': '', 'BP': record[-1]['BP']})
@@ -431,8 +431,7 @@ class Game(object):
                             continue
                         # assert 'drawn by' in rec
                         if 'Flagrant foul type 1' in rec:  # 一级恶意犯规（计入个人犯规和球队犯规）    犯规种类、犯规球员、造犯规球员、球权待定
-                            record.append({'Q': qtr, 'T': play.now(), 'FF1': int(tmp[3]), 'plyr': tmp[ix + 1],
-                                           'drawn': rec.split(' ')[-1][:-1] if 'drawn by' in rec else ''})
+                            record.append({'Q': qtr, 'T': play.now(), 'FF1': int(tmp[3]), 'plyr': tmp[ix + 1], 'drawn': rec.split(' ')[-1][:-1] if 'drawn by' in rec else ''})
                             record[-1]['BP'] = 1 if record[-1]['plyr'] in plyrs[0] else 0
                             if 'MK' in record[-2] and record[-2]['MK'][0] in plyrs[record[-1]['BP']]:    # 200102200CHI  30:37.0
                                 record[-2]['BP'] = record[-1]['BP']
@@ -802,19 +801,27 @@ class GameBoxScore(object):
 
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoffs']
-    i = 1
     ft, to, vl = [], [], []
     count_games = 0
     for season in range(1996, 2020):
         ss = '%d_%d' % (season, season + 1)
         # print(ss)
         for i in range(2):
+            season_dir = 'D:/sunyiwu/stat/data/seasons_scanned/%s/' % ss
+            if not os.path.exists(season_dir):
+                os.mkdir(season_dir)
+            season_dir = 'D:/sunyiwu/stat/data/seasons_scanned/%s/%s/' % (ss, regularOrPlayoffs[i])
+            if not os.path.exists(season_dir):
+                os.mkdir(season_dir)
             gms = os.listdir('D:/sunyiwu/stat/data/seasons/%s/%s/' % (ss, regularOrPlayoffs[i]))
             for gm in tqdm(gms):
                 count_games += 1
                 # print('\t\t\t' + gm)
                 game = Game(gm[:-7], regularOrPlayoffs[i])
                 vltmp, totmp, fttmp, record = game.game_scanner(gm[:-7])
+                # 保存文件
+                if 1:
+                    writeToPickle(season_dir + gm[:-7] + '_scanned.pickle', record)
                 game.find_time_series(gm, record)
                 # game.pace(gm[:-7], record)
 

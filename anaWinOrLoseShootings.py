@@ -5,6 +5,7 @@ import pandas as pd
 from tqdm import tqdm
 from klasses.miscellaneous import MPTime
 from klasses.Game import Game
+from util import gameMarkToDir, LoadPickle
 import copy
 
 
@@ -40,7 +41,8 @@ for i in range(0, 2):
         for gm in gms:
             count_games += 1
             game = Game(gm[:-7], regularOrPlayoffs[i])
-            _, _, _, record = game.game_scanner(gm[:-7])
+            record = LoadPickle(gameMarkToDir(gm[:-7], regularOrPlayoffs[i], tp=3))
+            # _, _, _, record = game.game_scanner(gm[:-7])
             lastqtr = record[-1]['Q']    # 最后一节节次
             assert lastqtr > 2
             lastsec = MPTime('%d:00.0' % (48 + 5 * (lastqtr - 3)))    # 本场最后时刻
