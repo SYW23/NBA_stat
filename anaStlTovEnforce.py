@@ -18,10 +18,10 @@ count_score_all = {}    # 球队在球权转换前创造的总得分
 average_score_all = {}    # 球队在球权转换前创造的平均得分
 # key: value
 # ——>
-# 'player name': [[0总次数, 1平均间隔时间, 2创造总得分, 3{'TOV': 0}（抢断/失误发生后球队失误率）, 4通过抢断/失误得分,
+# 'player name': [[0总次数, 1平均间隔时间, 2创造总得分, 3{'TOV': [0球队失误, 1球员失误]}（抢断/失误发生后球队失误率）, 4通过抢断/失误得分,
 #                  5[0球队罚球进, 1球队罚球出手, 2球队两分进, 3球队两分出手, 4球队三分进, 5球队三分出手],
 #                  6[0球员罚球进, 1球员罚球出手, 2球员两分进, 3球员两分出手, 4球员三分进, 5球员三分出手],
-#                  {赛季: [总次数, 平均间隔时间, 创造总得分, {'TOV': 0}（抢断/失误发生后球队失误率）, 通过抢断/失误得分]}]]
+#                  {赛季: [总次数, 平均间隔时间, 创造总得分, {'TOV': [球队失误, 球员失误]}（抢断/失误发生后球队失误率）, 通过抢断/失误得分]}]]
 plyrs = {}
 exchange_plays = []
 MSerror = 0
@@ -32,10 +32,10 @@ sentence = "'TOV' in rec and rec['plyr'] != 'Team' and rec['plyr'] != ''" if tar
 
 def new_player(pm, ss):
     if pm not in plyrs:  # 新建球员统计
-        plyrs[pm] = [[0, MPTime('0:00.0'), 0, {'TOV': 0}, 0, [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], {}],
-                     [0, MPTime('0:00.0'), 0, {'TOV': 0}, 0, [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], {}]]
+        plyrs[pm] = [[0, MPTime('0:00.0'), 0, {'TOV': [0, 0]}, 0, [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], {}],
+                     [0, MPTime('0:00.0'), 0, {'TOV': [0, 0]}, 0, [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], {}]]
     if ss not in plyrs[pm][i][-1]:  # 新建球员赛季统计
-        plyrs[pm][i][-1][ss] = [0, MPTime('0:00.0'), 0, {'TOV': 0}, 0, [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]]
+        plyrs[pm][i][-1][ss] = [0, MPTime('0:00.0'), 0, {'TOV': [0, 0]}, 0, [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]]
 
 
 for season in range(1996, 2020):
@@ -70,25 +70,25 @@ for season in range(1996, 2020):
                     if 'MK' in rec or 'MS' in rec:
                         GoM = 1 if 'MK' in rec else 0
                         KoS = 'MK' if GoM else 'MS'
-                        # 球队得失分
                         plyr_side = 0 if pm in gameplyrs[0] else 1
                         if tar_item:
                             plyr_side = 0 if plyr_side else 1
-                        s = rec[KoS][1]
-                        plyrs[pm][i][5][(s - 1) * 2 + 1] += 1
-                        plyrs[pm][i][-1][ss][5][(s - 1) * 2 + 1] += 1
-                        if GoM:
-                            count_score[i][2][0] += s
-                            count_score[i][rec['BP']][0] += s
-                            count_score[i][2][rec['Q'] + 1] += s
-                            count_score[i][rec['BP']][rec['Q'] + 1] += s
-                            plyrs[pm][i][2] += s
-                            plyrs[pm][i][-1][ss][2] += s
-                            plyrs[pm][i][5][(s - 1) * 2] += 1
-                            plyrs[pm][i][-1][ss][5][(s - 1) * 2] += 1
-                        # 球员得失分
                         sp = rec[KoS][0]
                         if sp in gameplyrs[plyr_side]:
+                            # 球队得失分
+                            s = rec[KoS][1]
+                            plyrs[pm][i][5][(s - 1) * 2 + 1] += 1
+                            plyrs[pm][i][-1][ss][5][(s - 1) * 2 + 1] += 1
+                            if GoM:
+                                count_score[i][2][0] += s
+                                count_score[i][rec['BP']][0] += s
+                                count_score[i][2][rec['Q'] + 1] += s
+                                count_score[i][rec['BP']][rec['Q'] + 1] += s
+                                plyrs[pm][i][2] += s
+                                plyrs[pm][i][-1][ss][2] += s
+                                plyrs[pm][i][5][(s - 1) * 2] += 1
+                                plyrs[pm][i][-1][ss][5][(s - 1) * 2] += 1
+                            # 球员得失分
                             new_player(sp, ss)
                             plyrs[sp][i][6][(s - 1) * 2 + 1] += 1
                             plyrs[sp][i][-1][ss][6][(s - 1) * 2 + 1] += 1
@@ -101,6 +101,8 @@ for season in range(1996, 2020):
                 if bp != -1 and rec['BP'] != bp:
                     zoom = 0
                     interval = MPTime(rec['T']) - happen_time
+                    if not interval:
+                        interval = MPTime('0:00.0')
                     # print(rec['T'], happen_time, interval, gm)
                     # ['PVL', 'MK', 'ORB', 'TOV', 'DRB', 'TVL', 'D3S', 'JB', 'FF1', 'FF2', 'PF']
                     if 'MS' in rec or 'TF' in rec or 'D3S' in rec or 'ORB' in rec:
@@ -111,12 +113,11 @@ for season in range(1996, 2020):
                         # now = MPTime(rec['T'])
                         # qtr_end = '%d:00.0' % (qtr * 12)
                         # now = MPTime(qtr_end) - now
-                        # playbyplay_editor_window = GameDetailEditor(gm=gm[:-7],
-                        #                                             title='第%d节 剩余%s    %s' % (qtr, now, str(rec)))
+                        # playbyplay_editor_window = GameDetailEditor(gm=gm[:-7], title='第%d节 剩余%s    %s' % (qtr, now, str(rec)))
                         # playbyplay_editor_window.loop()
                         interval = MPTime('0:00.0')
-                        plyrs[pm][i][3]['TOV'] += 1
-                        plyrs[pm][i][-1][ss][3]['TOV'] += 1
+                        plyrs[pm][i][3]['TOV'][0] += 1
+                        plyrs[pm][i][-1][ss][3]['TOV'][0] += 1
                     count_time[i][2][0] += interval
                     count_time[i][rec['BP']][0] += interval
                     count_time[i][2][rec['Q'] + 1] += interval
@@ -124,13 +125,28 @@ for season in range(1996, 2020):
                     plyrs[pm][i][1] += interval
                     plyrs[pm][i][-1][ss][1] += interval
                     if 'TOV' in rec:
-                        plyrs[pm][i][3]['TOV'] += 1
-                        plyrs[pm][i][-1][ss][3]['TOV'] += 1
+                        plyrs[pm][i][3]['TOV'][0] += 1
+                        plyrs[pm][i][-1][ss][3]['TOV'][0] += 1
+                        pmtov = rec['plyr']
+                        new_player(pmtov, ss)
+                        plyrs[pmtov][i][3]['TOV'][1] += 1
+                        plyrs[pmtov][i][-1][ss][3]['TOV'][1] += 1
                     bp = -1
                     pm = ''
                     exchange_plays = list(set(exchange_plays + list(rec.keys())))
                 # 抢断/失误次数+1，zoom置为1，bp置为当前球权方
                 if eval(sentence):
+                    try:
+                        assert zoom == 0
+                    except:
+                        print(gm, rec)
+                        # if gm > '199903180SAC':
+                        #     qtr = int(rec['Q']) + 1
+                        #     now = MPTime(rec['T'])
+                        #     qtr_end = '%d:00.0' % (qtr * 12)
+                        #     now = MPTime(qtr_end) - now
+                        #     playbyplay_editor_window = GameDetailEditor(gm=gm[:-7], title='第%d节 剩余%s    %s' % (qtr, now, str(rec)))
+                        #     playbyplay_editor_window.loop()
                     zoom = 1
                     happen_time = MPTime(rec['T'])
                     bp = rec['BP']
@@ -217,12 +233,12 @@ for pm in plyrs:
         if plyrs[pm][i][0]:
             plyrs[pm][i][1] = plyrs[pm][i][1].average_acc(plyrs[pm][i][0])
             # plyrs[pm][i][2] /= plyrs[pm][i][0]
-            plyrs[pm][i][3]['TOV'] /= plyrs[pm][i][0]
+            plyrs[pm][i][3]['TOV'][0] /= plyrs[pm][i][0]
         for ss in plyrs[pm][i][-1]:
             if plyrs[pm][i][-1][ss][0]:
                 plyrs[pm][i][-1][ss][1] = plyrs[pm][i][-1][ss][1].average_acc(plyrs[pm][i][-1][ss][0])
                 # plyrs[pm][i][-1][ss][2] /= plyrs[pm][i][-1][ss][0]
-                plyrs[pm][i][-1][ss][3]['TOV'] /= plyrs[pm][i][-1][ss][0]
+                plyrs[pm][i][-1][ss][3]['TOV'][0] /= plyrs[pm][i][-1][ss][0]
 
 print('共%d名球员' % len(plyrs))
 # for pm in plyrs:

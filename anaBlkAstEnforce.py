@@ -32,7 +32,7 @@ def new_player(pm, ss):
     if pm not in plyrs:  # 新建球员统计
         plyrs[pm] = [[0, 0, 0, 0, {}], [0, 0, 0, 0, {}]]
     if ss not in plyrs[pm][i][-1]:  # 新建球员赛季统计
-        plyrs[pm][i][-1][ss] = [0, 0, 0, 0, {}]
+        plyrs[pm][i][-1][ss] = [0, 0, 0, 0]
 
 
 for season in range(1996, 2020):
@@ -88,5 +88,4 @@ for season in range(1996, 2020):
     print(average_score_all[ss][:, 2, 0])
 
 writeToPickle('./data/Enforce/player%sEnforce.pickle' % tar_text[tar_item], plyrs)
-writeToPickle('./data/Enforce/season%sEnforceRecord.pickle' % tar_text[tar_item],
-              [count_games_all, count_item_all, count_score_all, average_score_all])
+writeToPickle('./data/Enforce/season%sEnforceRecord.pickle' % tar_text[tar_item], [count_games_all, count_item_all, count_score_all, average_score_all])

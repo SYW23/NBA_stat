@@ -51,7 +51,7 @@ class Player(object):
         for i in range(self.seasons):
             ss = games.iloc[ss_ix[i]]['Playoffs' if self.RoP else 'Date']
             yy = ss[:4]
-            yy = '%s-%s' % (str(int(yy) - 1), yy[-2:]) if self.RoP else '%s-%s' % (yy, str(int(yy) + 1)[-2:])
+            yy = '%s_%s' % (str(int(yy) - 1), yy) if self.RoP else '%s_%s' % (yy, str(int(yy) + 1))
             if sgames:
                 yield games[ss_ix[i]:ss_ix[i + 1]], yy
             else:

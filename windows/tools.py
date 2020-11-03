@@ -95,8 +95,9 @@ class GameDetailEditor(object):
     def oneoftwo_fc(self):
         assert self.select_rows[0] == 1
         rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
-        ind = 1 if rec[1] else 5
-        rec[ind] = rec[ind].replace('1 of 2', '1 of 1')
+        # ind = 1 if rec[1] else 5
+        ind = 0
+        rec[ind] = rec[ind].replace('1:07', '0:32')
         self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
         self.qtr_redsp()
         self.reset_selection()
@@ -106,7 +107,8 @@ class GameDetailEditor(object):
         rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
         ind = 1 if rec[1] else 5
         # assert 'free throw' in rec[ind]
-        rec[ind] = rec[ind].replace('no shot', 'free throw flagrant 2 of 2')
+        rec[ind] = rec[ind].replace('free throw', 'flagrant free throw')
+        # rec[ind] = rec[ind].replace('no shot', 'free throw flagrant 2 of 2')
         self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
         self.qtr_redsp()
         self.reset_selection()
