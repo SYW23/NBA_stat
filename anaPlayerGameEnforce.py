@@ -100,25 +100,12 @@ for season in range(2000, 2020):
                         blk_ = blk * plus_minus[2] * op_sp
                         tov_ = - tov * plus_minus[1]
                         # pf_ =
-                        # ================ per分项计算 ================
-                        s1 = tp
-                        s2 = 2 / 3 * ast
-                        s3 = (2 - lg_factor * (tm_stats[12] / tm_stats[0])) * fg
-                        s4 = ft * 0.5 * (2 - (1 / 3) * (tm_stats[12] / tm_stats[0]))
-                        s5 = - lg_vop * tov
-                        s6 = - lg_vop * lg_drbp * (fga - fg)
-                        s7 = - lg_vop * 0.44 * (0.44 + (0.56 * lg_drbp)) * fmiss
-                        s8 = lg_vop * (1 - lg_drbp) * (trb - orb)
-                        s9 = lg_vop * lg_drbp * orb
-                        s10 = lg_vop * stl
-                        s11 = lg_vop * lg_drbp * blk
-                        s12 = - (pf * ((lg_stats[6] / lg_stats[16]) - 0.44 * (lg_stats[7] / lg_stats[16]) * lg_vop))
+
                         # ================ 综合数据值 ================ 改进：1 投篮效率完全没有考虑！！！  2 盖帽需考虑对手命中率
                         # score = pts_ + drb * 0.45 + orb * plus_minus[4] + ast_ + stl * plus_minus[0] + blk * plus_minus[2] * 0.4 - tov * plus_minus[1] - pf * 1.2 - \
                         #         fmiss * 0.6 - 2 * bmiss * 0.36 - 3 * tmiss * 0.25
-                        # score = orb_ + ast_ + stl_ + blk_ + tov_
+                        score = orb_ + ast_ + stl_ + blk_ + tov_
                         # score = pts + orb * orb_plus + ast * ast_plus + stl * stl_plus + blk * blk_plus - tov * tov_minus - pf * 2 - fmiss - 2 * bmiss - 3 * tmiss
-                        score = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9 + s10 + s11 + s12
                         score = score / mp.mf() * 25
                         score *= (lg_pace / tm_pace)
                         # print(pm, num_games, score)

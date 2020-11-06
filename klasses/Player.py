@@ -28,7 +28,7 @@ class Player(object):
                 self.plyrFD = plyrdr    # 球员个人文件目录
                 self.data = LoadPickle(self.plyrFD)
                 if not isinstance(self.data, list):
-                    self.data.reset_index(drop=True)
+                    self.data = self.data.reset_index(drop=True)
                     if len(self.data.columns) == len(self.dt):
                         self.data.columns = list(self.dt.keys())
                     else:
@@ -56,6 +56,22 @@ class Player(object):
                 yield games[ss_ix[i]:ss_ix[i + 1]], yy
             else:
                 yield yy
+
+    def getSeason(self, ss):
+        gmcol = 'Playoffs' if self.RoP else 'Date'
+        start = ss[:4]
+        gms = self.data[self.data['G'].notna()]
+        s, e, flag = -1, -1, 0
+        for i in gms.index:
+            if not flag and gms[gmcol][i] > start + '10':
+                s = i
+                flag = 1
+            elif s != -1 and gms['G'][i] == '1':
+                e = i - 1
+                break
+        res = gms.loc[s:e] if e != -1 else gms.loc[s:]
+        res = res.reset_index(drop=True)
+        return res
 
     def on_board_games(self, games):
         # games = games['G'].astype('str')
