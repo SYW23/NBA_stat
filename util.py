@@ -175,6 +175,11 @@ def LoadPickle(fileName):
     f.close()
     return content
 
+def LoadText(fileName):
+    f = open(fileName, 'r', encoding='utf-8')
+    content = f.readlines()
+    f.close()
+    return content
 
 # 获取网页源代码
 def getCode(url, encoding):

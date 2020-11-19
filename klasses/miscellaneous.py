@@ -1,8 +1,10 @@
 import math
 import numpy as np
 import re
+from klasses.cmptools import total_ordering
 
 
+@total_ordering
 class MPTime(object):
     def __init__(self, strtime, reverse=True, qtr=-1):    # reverse为True为倒计时模式，qtr为节次
         ans = re.findall('\d+', strtime)
@@ -53,7 +55,10 @@ class MPTime(object):
             c -= 60
         return MPTime('%d:%02d.%d' % ((a[0] + b[0]), c, d), reverse=self.reverse)
 
-    def __le__(self, other):    # 倒计时形式的早晚比较（越小越晚）
+    def __eq__(self, other):
+        return self.min == other.min and self.sec == other.sec and self.msc == other.msc
+
+    def __lt__(self, other):    # 倒计时形式的早晚比较（越小越晚）
         '''
         a = MPTime('46:09.2')
         b = MPTime('47:09.1')
@@ -69,10 +74,31 @@ class MPTime(object):
             elif self.sec < other.sec:
                 return True
             else:
-                if self.msc > other.msc:
+                if self.msc >= other.msc:
                     return False
                 else:
                     return True
+
+    # def __le__(self, other):    # 倒计时形式的早晚比较（越小越晚）
+    #     '''
+    #     a = MPTime('46:09.2')
+    #     b = MPTime('47:09.1')
+    #     print(a <= b)    # True
+    #     '''
+    #     if self.min > other.min:
+    #         return False
+    #     elif self.min < other.min:
+    #         return True
+    #     else:
+    #         if self.sec > other.sec:
+    #             return False
+    #         elif self.sec < other.sec:
+    #             return True
+    #         else:
+    #             if self.msc > other.msc:
+    #                 return False
+    #             else:
+    #                 return True
 
     def average(self, n):    # 返回精确到秒"mm:ss"
         ss = eval(str(self.min) + '*60+' + str(self.sec))

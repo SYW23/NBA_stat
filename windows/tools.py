@@ -107,11 +107,25 @@ class GameDetailEditor(object):
         rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
         ind = 1 if rec[1] else 5
         # assert 'free throw' in rec[ind]
-        rec[ind] = rec[ind].replace('free throw', 'flagrant free throw')
-        # rec[ind] = rec[ind].replace('no shot', 'free throw flagrant 2 of 2')
+        # rec[ind] = rec[ind].replace('tayloma01', '')
+        rec[0] = rec[0].replace('1:27', '0:29')
+        # pmn = rec[ind].split(' ')[0]
+        # pmf = rec[ind].split(' ')[-1]
+        # rec[ind] = '%s enters the game for %s' % (pmf, pmn)
         self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
         self.qtr_redsp()
         self.reset_selection()
+
+    def insert_fc(self):
+        assert self.select_rows[0] == 1
+        rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
+        ind = 1 if rec[1] else 5
+        disc = 'stackry01 enters the game for declean01'
+        tmp = [x if x != rec[ind] else disc for x in rec]
+        self.gameflow[int(self.qtr.get())].insert(self.select_rows[1][0] + 1, tmp)
+        self.qtr_redsp()
+        self.reset_selection()
+        self.all_rows -= 1
 
     def click(self, event):
         if self.RoW_int:
@@ -222,6 +236,8 @@ class GameDetailEditor(object):
                                   compound='center', cursor='hand2', command=self.oneoftwo_fc, font=('SimHei', 13))
         techft_button = Button(self.wd_gd, text='techft', width=100, height=20,
                                   compound='center', cursor='hand2', command=self.techft_fc, font=('SimHei', 13))
+        insert_button = Button(self.wd_gd, text='insert', width=100, height=20,
+                               compound='center', cursor='hand2', command=self.insert_fc, font=('SimHei', 13))
         gm_label.place(relx=0.02, rely=0.04, relwidth=0.1, relheight=0.04)
         gm_ent.place(relx=0.15, rely=0.04, relwidth=0.2, relheight=0.04)
         display_button.place(relx=0.38, rely=0.04, relwidth=0.08, relheight=0.04)
@@ -229,12 +245,13 @@ class GameDetailEditor(object):
         self.RoW_button.place(relx=0.81, rely=0.04, relwidth=0.18, relheight=0.04)
         clear_button.place(relx=0.6, rely=0.04, relwidth=0.08, relheight=0.04)
         ofdefexc_button.place(relx=0.71, rely=0.04, relwidth=0.08, relheight=0.04)
-        exc1with5_button.place(relx=0.71, rely=0.1, relwidth=0.08, relheight=0.04)
-        oneoftwo_button.place(relx=0.6, rely=0.1, relwidth=0.08, relheight=0.04)
-        techft_button.place(relx=0.82, rely=0.1, relwidth=0.08, relheight=0.04)
+        exc1with5_button.place(relx=0.71, rely=0.09, relwidth=0.08, relheight=0.04)
+        oneoftwo_button.place(relx=0.81, rely=0.09, relwidth=0.08, relheight=0.04)
+        techft_button.place(relx=0.91, rely=0.09, relwidth=0.08, relheight=0.04)
+        insert_button.place(relx=0.71, rely=0.14, relwidth=0.08, relheight=0.04)
 
         self.wd_gd.title(self.title)
-        self.qtr_fm.place(relx=0.07, rely=0.09, relwidth=0.5, relheight=0.08)
+        self.qtr_fm.place(relx=0.01, rely=0.09, relwidth=0.7, relheight=0.08)
         self.tree = ttk.Treeview(self.wd_gd, columns=self.columns, show='headings')
         self.tree.bind('<ButtonRelease-1>', self.click)
         self.tree_generate([])

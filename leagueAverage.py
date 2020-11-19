@@ -18,7 +18,7 @@ for season in range(1996, 2020):
         for gmf in tqdm(gms):
             gm = gmf[:-7]
             game = Game(gm, regularOrPlayoffs[i])
-            _, _, _, record = game.game_scanner(gm)
+            _, _, _, record = game.game_scanner()
             tmplyrs = game.teamplyrs()
             bx = game.boxscores(record)[:, 6, :]
             gametime = 48 if game.quarters == 4 else 48 + 5 * (game.quarters - 4)

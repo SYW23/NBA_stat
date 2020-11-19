@@ -25,8 +25,8 @@ average_score_all = {}    # 球队在球权转换前创造的平均得分
 plyrs = {}
 exchange_plays = []
 MSerror = 0
-tar_item = 0    # 0抢断1失误
 tartext = ['Steal', 'Turnover']
+tar_item = 1    # 0抢断1失误
 sentence = "'TOV' in rec and rec['plyr'] != 'Team' and rec['plyr'] != ''" if tar_item else "'TOV' in rec and 'STL' in rec"
 
 

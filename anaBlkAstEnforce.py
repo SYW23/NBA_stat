@@ -22,10 +22,10 @@ average_score_all = {}    # 球队在球权转换前创造的平均得分
 # 'player name': [[0总次数, 1阻止/帮助总得分, 2总被次数, 3被阻止/帮助总得分,
 #                  {赛季: [0总次数, 1阻止/帮助总得分, 2总被次数, 3被阻止/帮助总得分]]
 plyrs = {}
-tar_item = 1    # 0盖帽1助攻
 tar_sn = ['BLK', 'AST']
 KoS = ['MS', 'MK']
 tar_text = ['Block', 'Assist']
+tar_item = 1    # 0盖帽1助攻
 
 
 def new_player(pm, ss):

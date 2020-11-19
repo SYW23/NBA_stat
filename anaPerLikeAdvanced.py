@@ -31,7 +31,7 @@ pms = list(enforce['Turnover'].keys())
 print()
 
 res_all = [{}, {}]
-for season in range(2019, 2020):
+for season in range(2016, 2017):
     ss = '%d_%d' % (season, season + 1)
     print(ss)
     for i in range(2):
@@ -51,8 +51,11 @@ for season in range(2019, 2020):
         lg_drbp = (lg_stats[11] - lg_stats[9]) / lg_stats[11]
         # factor = (2 / 3) - (0.5 * (lg_AST / lg_FG)) / (2 * (lg_FG / lg_FT))
         lg_factor = 2 / 3 - (0.5 * lg_stats[12] / lg_stats[0]) / (2 * lg_stats[0] / lg_stats[6])
-        print(lg_vop, lg_drbp, lg_factor)
-        print(lg_pace, (lg_stats[1] - lg_stats[9] + lg_stats[15] + 0.44 * lg_stats[7]) / lg_games / 2)
+        print('联盟进攻效率（分/回合）', lg_vop)
+        print('防守篮板/总篮板占比', lg_drbp)
+        print('联盟运动战单打能力', lg_factor)
+        print('bbr复杂pace估计', lg_pace)
+        print('传统pace估计', (lg_stats[1] - lg_stats[9] + lg_stats[15] + 0.44 * lg_stats[7]) / lg_games / 2)
         lgsum, lgames, lgmax, lgmin = 0, 0, [0, []], [30, []]
         for pm in tqdm(pms):
             if ss in enforce['Turnover'][pm][i][-1]:
@@ -136,12 +139,12 @@ for season in range(2019, 2020):
             print(RoF[i], r + 1, top10[r], res[top10[r]])
         print()
 
-        res_all[i] = {**res_all[i], **res}
+        res_all[i] = {**res_all[i], **res}    # 取出res所有键值对放入res_all[i]
 
 
 for i in range(2):
     res_all_sorted = {}
-    for k in sorted(res_all[i], key=res_all[i].__getitem__, reverse=True):
+    for k in sorted(res_all[i], key=res_all[i].__getitem__, reverse=True):    # 字典按值排序
         res_all_sorted[k] = res_all[i][k]
     top10 = list(res_all_sorted.keys())[:50]
     for r in range(len(top10)):

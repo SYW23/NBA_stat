@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from tqdm import tqdm
 from util import getCode, writeToPickle
 
-for season in range(2020, 2021):
+for season in range(2019, 2021):
     # 赛季
     print('=' * 50)
     print('starting to record season %s_%s' % (str(season-1), str(season)))
