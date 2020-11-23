@@ -13,6 +13,16 @@ import matplotlib.animation as animation
 from PIL import Image
 
 
+def plus_minus(r, s, RoH):
+    '''
+    :param r: 当前时间点
+    :param s: 回溯时间点
+    :param RoH: 主客场视角
+    :return:
+    '''
+    return (r['S'][RoH] - s[RoH]) - (r['S'][RoH - 1] - s[RoH - 1])
+
+
 def writeToExcel(file, colNames, content):
     output = open(file,'w',encoding='utf-8')
     if colNames:

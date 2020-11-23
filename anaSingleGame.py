@@ -11,9 +11,14 @@ pd.options.display.expand_frame_repr = False
 pd.options.display.width = 50
 RoF = ['regular', 'playoff']
 
-gm = '202001130SAC.pickle'
+gm = '201710250LAL.pickle'
 game = Game(gm[:-7], 'regular')
 _, _, _, record = game.game_scanner()
+# 判断胜者
+scores = [game.bxscr[0][x][0] for x in game.bxscr[0]]
+print(scores)
+print(int(scores[0] < scores[1]))
+
 for i in record:
     print(i)
 rot = game.rotation(record)

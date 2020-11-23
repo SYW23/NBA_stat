@@ -6,7 +6,7 @@ from tqdm import tqdm
 import numpy as np
 from klasses.Game import Game
 from klasses.miscellaneous import MPTime
-from util import writeToPickle, gameMarkToDir, LoadPickle
+from util import writeToPickle, gameMarkToDir, LoadPickle, plus_minus
 
 regularOrPlayoffs = ['regular', 'playoffs']
 
@@ -14,10 +14,6 @@ regularOrPlayoffs = ['regular', 'playoffs']
 def inline(r):
     line = r['R'][RoH]
     return sorted(line, reverse=True)
-
-
-def plus_minus(r, s, RoH):
-    return (r['S'][RoH] - s[RoH]) - (r['S'][RoH - 1] - s[RoH - 1])
 
 
 lines_all = [{}, {}]
@@ -31,12 +27,12 @@ for season in range(2019, 2020):
         for gmf in tqdm(gms):
             gm = gmf[:-7]
             game = Game(gm, regularOrPlayoffs[i])
+            _, _, _, record = game.game_scanner()
+            rot = game.rotation(record)
+            et = '%d:00.0' % (48 + 5 * (game.quarters - 4))
             for tm in list(game.bxscr[0]):    # 分别回溯两支球队
                 if tm not in lines:
                     lines[tm] = {}
-                _, _, _, record = game.game_scanner()
-                rot = game.rotation(record)
-                et = '%d:00.0' % (48 + 5 * (game.quarters - 4))
                 RoH = list(game.bxscr[0]).index(tm)
                 for ix, r in enumerate(rot):
                     line = inline(r)
