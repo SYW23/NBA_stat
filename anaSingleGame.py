@@ -4,6 +4,7 @@
 from klasses.Game import Game
 from klasses.Player import Player
 from util import LoadPickle, playerMarkToDir
+from stats_nba.Game_nba import Game_nba
 import pandas as pd
 import numpy as np
 np.set_printoptions(suppress=True)
@@ -11,24 +12,54 @@ pd.options.display.expand_frame_repr = False
 pd.options.display.width = 50
 RoF = ['regular', 'playoff']
 
-gm = '201710250LAL.pickle'
-game = Game(gm[:-7], 'regular')
-_, _, _, record = game.game_scanner()
+gm = '202101090PHI.pickle'
+game = Game(gm[:-7], RoF[0])
+record = game.game_scanner()
+# for i in record:
+#     print(i)
+record = game.game_analyser(record)
+record = game.game_analyser(record, T=1)
+for i in record:
+    print(i)
+
+print(game.pace(record))
 # 判断胜者
 scores = [game.bxscr[0][x][0] for x in game.bxscr[0]]
 print(scores)
-print(int(scores[0] < scores[1]))
+print('主队胜' if scores[0] < scores[1] else '客队胜')
 
-for i in record:
-    print(i)
 rot = game.rotation(record)
-for i in rot:
-    print(i)
+# for i in rot:
+#     print(i)
+bxs = game.replayer(record, rot)
+print()
+# for i in range(2):
+#     for k in bxs.tdbxs[i][0]:
+#         if k != 'team':
+#             print(k, list(bxs.tdbxs[i][0][k][0]))
+#         else:
+#             print(k, list(bxs.tdbxs[i][0][k]))
+#     print()
+# print()
+# for i in game.nba_lastMins:
+#     print(i)
+
 # for i in record:
 #     print(i)
-# game.find_time_series(record)
-# bx = game.boxscores(record)[:, 6, :]
-# print(bx)
+game.find_time_series(record)
+game.start_of_quarter(record)
+_, _ = game.pace(record)
+
+gn = Game_nba(game.nba_file, game.ss)
+
+# if gn.nba_actions:
+#     gn.game_scanner()
+#     for i in gn.record:
+#         print(i)
+
+# bxs = game.boxscores(record)
+# for i in bxs:
+#     print(i)
 # print(game.teamplyrs())
 # ttl = [game.bxscr[1][0][-1], game.bxscr[1][1][-1]]
 # print(ttl)

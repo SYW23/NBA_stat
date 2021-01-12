@@ -113,10 +113,10 @@ class MPTime(object):
         return '%d:%.1f' % (ss[1], ss[0] * 60)
 
     def secs(self):
-        return self.min * 60 + self.sec
+        return self.min * 60 + self.sec + float('%.1f' % (self.msc / 10))
 
     def mf(self):
-        return self.min + self.sec / 60
+        return self.min + (self.sec + self.msc / 10) / 60
 
 
 class WinLoseCounter(object):

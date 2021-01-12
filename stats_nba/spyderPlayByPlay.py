@@ -11,10 +11,11 @@ from bs4 import BeautifulSoup
 import datetime
 import time
 
-date = datetime.datetime.strptime('2020-08-10', '%Y-%m-%d')
+date = datetime.datetime.strptime('2021-01-10', '%Y-%m-%d')
 delta = datetime.timedelta(days=1)
-
-while True:
+today = time.strftime("%Y-%m-%d", time.localtime())
+today = str(datetime.datetime.strptime(today, '%Y-%m-%d') - delta)
+while str(date) < today:
     datestr = date.strftime('%Y-%m-%d')
     # 日期页
     dateurl = 'https://www.nba.com/games?date=%s' % datestr
@@ -96,34 +97,34 @@ while True:
 
 
 #%%
-res = [[]]
-table = page.find('div', class_='md:p-5')
-records = table.find_all('article')
-# print(len(records))
-for i in records:
-    # 获取一行记录
-    s = i.find('div').contents
-    # 判断中间记录栏是否包含比分纪录（包含则bf有两个元素，否则只有一个，即时间）
-    bf = s[0].find_all('span')
-    if len(bf) > 1:
-        s = bf + s[1:]
-    ts = [x.text for x in s]
-    if len(bf) == 1:
-        ts.insert(1, '')
-    # 判断是否包含头像，如包含则获取图像编号用于唯一确定球员（双方可能存在last name相同的球员）
-    img = s[-1].find_all('img')
-    if img:
-        pmn = img[0].attrs['src']
-        pmn = pmn.split('/')[-1][:-4]
-        ts.append(pmn)
-    else:
-        ts.append('')
-    # 判断是否新增一节
-    if res[-1]:
-        if '.' in res[-1][-1][0] and ':' in ts[0]:
-            res.append([])
-    res[-1].append(ts)
-assert 3 < len(res) < 8
+# res = [[]]
+# table = page.find('div', class_='md:p-5')
+# records = table.find_all('article')
+# # print(len(records))
+# for i in records:
+#     # 获取一行记录
+#     s = i.find('div').contents
+#     # 判断中间记录栏是否包含比分纪录（包含则bf有两个元素，否则只有一个，即时间）
+#     bf = s[0].find_all('span')
+#     if len(bf) > 1:
+#         s = bf + s[1:]
+#     ts = [x.text for x in s]
+#     if len(bf) == 1:
+#         ts.insert(1, '')
+#     # 判断是否包含头像，如包含则获取图像编号用于唯一确定球员（双方可能存在last name相同的球员）
+#     img = s[-1].find_all('img')
+#     if img:
+#         pmn = img[0].attrs['src']
+#         pmn = pmn.split('/')[-1][:-4]
+#         ts.append(pmn)
+#     else:
+#         ts.append('')
+#     # 判断是否新增一节
+#     if res[-1]:
+#         if '.' in res[-1][-1][0] and ':' in ts[0]:
+#             res.append([])
+#     res[-1].append(ts)
+# assert 3 < len(res) < 8
 
 # writeToPickle('../data_nba/play_by_play/%s/%s' % (ss, filename), res)
     

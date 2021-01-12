@@ -6,10 +6,9 @@ import itertools
 from klasses.miscellaneous import MPTime
 from tqdm import tqdm
 
+
+# ===================================由5lineups推出1~4lineups===========================================
 lines = LoadPickle('data/Lineups/anaSeason5Lineups.pickle')
-# print(len(lines))
-# print(len(lines[0]))
-# print(len(lines[0]['2019_2020']))
 lines_all = [[{}, {}], [{}, {}], [{}, {}], [{}, {}]]    # 0一人组合1二人组合2三人组合3四人组合 0常规赛1季后赛
 for season in tqdm(range(2000, 2020)):
     ss = '%d_%d' % (season, season + 1)
@@ -49,3 +48,5 @@ for ix in range(4):
     writeToPickle('./data/Lineups/anaSeason%dLineups.pickle' % (ix + 1), lines_all[ix])
     # for combs in lines_all[ix][0]['2019_2020']['LAL']:
     #     print(combs, lines_all[ix][0]['2019_2020']['LAL'][combs])
+
+

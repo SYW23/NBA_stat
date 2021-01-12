@@ -9,15 +9,25 @@ from util import LoadPickle, gameMarkToDir, writeToPickle
 
 
 class GameDetailEditor(object):
-    def __init__(self, gm='201904050UTA', title='play-by-play修改器'):
+    def __init__(self, gm='201904050UTA', title='play-by-play修改器', st=''):
         self.title = title
         self.columns = ['时间', '客队记录', 'r', '比分', 'h', '主队记录']
         self.col_widths = [100, 400, 60, 100, 60, 400]
         self.wd_gd = Tk()
-        self.wd_gd.geometry('1200x800+300+100')
+        self.wd_gd.geometry('1200x950+550+50')
         self.tree = None
         self.gm = StringVar()
         self.gm.set(gm)
+        self.ori = StringVar()
+        # self.ori.set('Violation by Team')
+        self.tar = StringVar()
+        if st:
+            self.tar.set(st)
+            self.ori.set('all')
+        self.clock_o = StringVar()
+        self.clock_o.set('')
+        self.clock_n = StringVar()
+        self.clock_n.set('')
         self.wd_gd.bind("<Return>", self.display_pbp_enter)
         self.wd_gd.bind("<Escape>", self.xquit)
         self.wd_gd.bind("<space>", self.xwrite2file)
@@ -44,7 +54,7 @@ class GameDetailEditor(object):
     def RoW(self):
         self.RoW_int = 0 if self.RoW_int else 1
         self.RoW_button['text'] = '编辑模式 点击切换' if self.RoW_int else '阅读模式 点击切换'
-        print(self.RoW_int)
+        print('开放编辑' if self.RoW_int else '不可编辑')
 
     def qtr_redsp(self):
         items = self.tree.get_children()
@@ -62,6 +72,7 @@ class GameDetailEditor(object):
         items = self.tree.get_children()
         [self.tree.delete(item) for item in items]
         self.insert_table(self.tree, self.gameflow[int(self.qtr.get())])
+        # print(self.gameflow[int(self.qtr.get())])
         if not ori:
             self.all_rows += len(self.gameflow[self.ori_qtr])
         self.ori_qtr = int(self.qtr.get())
@@ -92,26 +103,43 @@ class GameDetailEditor(object):
         self.qtr_redsp()
         self.reset_selection()
 
-    def oneoftwo_fc(self):
+    def top_fc(self):
         assert self.select_rows[0] == 1
         rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
         # ind = 1 if rec[1] else 5
-        ind = 0
-        rec[ind] = rec[ind].replace('1:07', '0:32')
+        self.gameflow[int(self.qtr.get())].pop(self.select_rows[1][0])
+        self.gameflow[int(self.qtr.get())].insert(1, rec)
+        self.qtr_redsp()
+        self.reset_selection()
+
+    def replace_fc(self):
+        assert self.select_rows[0] == 1
+        rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
+        ind = 1 if rec[1] else 5
+        if self.ori.get() == 'all':
+            if len(rec) == 2:
+                assert ind == 1
+                rec[ind] = rec[ind].replace(rec[ind], self.tar.get())
+                rec.append('')
+                rec.append(self.gameflow[int(self.qtr.get())][self.select_rows[1][0] - 1][3])
+                rec.append('')
+                rec.append('')
+            else:
+                rec[ind] = rec[ind].replace(rec[ind], self.tar.get())    # Violation by kaminfr01 (jump ball)
+        elif self.ori.get() == 'p':
+            player_rd = rec[ind].split(' ')[-1 if 'by' in rec[ind] else 0]
+            if self.tar.get():
+                rec[ind] = rec[ind].replace(player_rd, self.tar.get())
+        else:
+            rec[ind] = rec[ind].replace(self.ori.get(), self.tar.get())
         self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
         self.qtr_redsp()
         self.reset_selection()
 
-    def techft_fc(self):
+    def clock_alter_fc(self):
         assert self.select_rows[0] == 1
         rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
-        ind = 1 if rec[1] else 5
-        # assert 'free throw' in rec[ind]
-        # rec[ind] = rec[ind].replace('tayloma01', '')
-        rec[0] = rec[0].replace('1:27', '0:29')
-        # pmn = rec[ind].split(' ')[0]
-        # pmf = rec[ind].split(' ')[-1]
-        # rec[ind] = '%s enters the game for %s' % (pmf, pmn)
+        rec[0] = rec[0].replace(self.clock_o.get(), self.clock_n.get())
         self.gameflow[int(self.qtr.get())][self.select_rows[1][0]] = rec
         self.qtr_redsp()
         self.reset_selection()
@@ -119,13 +147,27 @@ class GameDetailEditor(object):
     def insert_fc(self):
         assert self.select_rows[0] == 1
         rec = self.gameflow[int(self.qtr.get())][self.select_rows[1][0]]
-        ind = 1 if rec[1] else 5
-        disc = 'stackry01 enters the game for declean01'
-        tmp = [x if x != rec[ind] else disc for x in rec]
+        disc = self.tar.get()
+        if 'Jump ball:' in disc:
+            tmp = rec.copy()
+            tmp[1] = disc
+        else:
+            ind = 1 if rec[1] else 5
+            tmp = [x if x != rec[ind] else disc for x in rec]
+            tmp[2], tmp[4], = '', ''
+        if self.title != 'play-by-play修改器':
+            tmp[0] = self.title.split(' ')[1][2:]
         self.gameflow[int(self.qtr.get())].insert(self.select_rows[1][0] + 1, tmp)
         self.qtr_redsp()
         self.reset_selection()
         self.all_rows -= 1
+
+    def pop_fc(self):
+        assert self.select_rows[0] == 1
+        self.gameflow[int(self.qtr.get())].pop(self.select_rows[1][0])
+        self.qtr_redsp()
+        self.reset_selection()
+        self.all_rows += 1
 
     def click(self, event):
         if self.RoW_int:
@@ -202,8 +244,8 @@ class GameDetailEditor(object):
         # scrollbary.set(0.5, 0.5)
         # print(self.tree.yview())
         scrollbarx.place(relx=0.005, rely=0.97, relwidth=0.97, relheight=0.03)    # 布局
-        scrollbary.place(relx=0.98, rely=0.20, relwidth=0.02, relheight=0.76)
-        self.tree.place(relx=0.005, rely=0.20, relwidth=0.97, relheight=0.76)
+        scrollbary.place(relx=0.98, rely=0.25, relwidth=0.02, relheight=0.76)
+        self.tree.place(relx=0.005, rely=0.25, relwidth=0.97, relheight=0.72)
 
     def clear_fc(self):
         self.gameflow = None
@@ -214,6 +256,10 @@ class GameDetailEditor(object):
         self.select_rows = [0, []]
         self.all_rows = 0
         self.file_name = None
+        # self.ori.set('Violation by Team')
+        # self.tar.set('Turnover by ')
+        self.clock_o.set('')
+        self.clock_n.set('')
         if self.RoW_int:
             self.RoW()
 
@@ -232,12 +278,22 @@ class GameDetailEditor(object):
                                 compound='center', cursor='hand2', command=self.ofdefexc_fc, font=('SimHei', 13))
         exc1with5_button = Button(self.wd_gd, text='交换', width=100, height=20,
                                 compound='center', cursor='hand2', command=self.exc1with5_fc, font=('SimHei', 13))
-        oneoftwo_button = Button(self.wd_gd, text='1of2', width=100, height=20,
-                                  compound='center', cursor='hand2', command=self.oneoftwo_fc, font=('SimHei', 13))
-        techft_button = Button(self.wd_gd, text='techft', width=100, height=20,
-                                  compound='center', cursor='hand2', command=self.techft_fc, font=('SimHei', 13))
+        top_button = Button(self.wd_gd, text='top', width=100, height=20,
+                                  compound='center', cursor='hand2', command=self.top_fc, font=('SimHei', 13))
+        replace_button = Button(self.wd_gd, text='replace', width=100, height=20,
+                                  compound='center', cursor='hand2', command=self.replace_fc, font=('SimHei', 13))
         insert_button = Button(self.wd_gd, text='insert', width=100, height=20,
                                compound='center', cursor='hand2', command=self.insert_fc, font=('SimHei', 13))
+        pop_button = Button(self.wd_gd, text='delete', width=100, height=20,
+                            compound='center', cursor='hand2', command=self.pop_fc, font=('SimHei', 13))
+        clock_button = Button(self.wd_gd, text='clock', width=100, height=20,
+                                compound='center', cursor='hand2', command=self.clock_alter_fc, font=('SimHei', 13))
+
+        tar_ent = Entry(self.wd_gd, width=20, textvariable=self.tar, font=('SimHei', 13))
+        ori_ent = Entry(self.wd_gd, width=20, textvariable=self.ori, font=('SimHei', 13))
+        clock_o_ent = Entry(self.wd_gd, width=20, textvariable=self.clock_o, font=('SimHei', 13))
+        clock_n_ent = Entry(self.wd_gd, width=20, textvariable=self.clock_n, font=('SimHei', 13))
+
         gm_label.place(relx=0.02, rely=0.04, relwidth=0.1, relheight=0.04)
         gm_ent.place(relx=0.15, rely=0.04, relwidth=0.2, relheight=0.04)
         display_button.place(relx=0.38, rely=0.04, relwidth=0.08, relheight=0.04)
@@ -246,12 +302,18 @@ class GameDetailEditor(object):
         clear_button.place(relx=0.6, rely=0.04, relwidth=0.08, relheight=0.04)
         ofdefexc_button.place(relx=0.71, rely=0.04, relwidth=0.08, relheight=0.04)
         exc1with5_button.place(relx=0.71, rely=0.09, relwidth=0.08, relheight=0.04)
-        oneoftwo_button.place(relx=0.81, rely=0.09, relwidth=0.08, relheight=0.04)
-        techft_button.place(relx=0.91, rely=0.09, relwidth=0.08, relheight=0.04)
+        top_button.place(relx=0.81, rely=0.09, relwidth=0.08, relheight=0.04)
+        replace_button.place(relx=0.91, rely=0.09, relwidth=0.08, relheight=0.04)
         insert_button.place(relx=0.71, rely=0.14, relwidth=0.08, relheight=0.04)
+        pop_button.place(relx=0.81, rely=0.14, relwidth=0.08, relheight=0.04)
+        ori_ent.place(relx=0.3, rely=0.19, relwidth=0.2, relheight=0.04)
+        tar_ent.place(relx=0.52, rely=0.19, relwidth=0.47, relheight=0.04)
+        clock_button.place(relx=0.91, rely=0.14, relwidth=0.08, relheight=0.04)
+        clock_o_ent.place(relx=0.02, rely=0.19, relwidth=0.08, relheight=0.04)
+        clock_n_ent.place(relx=0.12, rely=0.19, relwidth=0.08, relheight=0.04)
 
         self.wd_gd.title(self.title)
-        self.qtr_fm.place(relx=0.01, rely=0.09, relwidth=0.7, relheight=0.08)
+        self.qtr_fm.place(relx=0.01, rely=0.09, relwidth=0.65, relheight=0.08)
         self.tree = ttk.Treeview(self.wd_gd, columns=self.columns, show='headings')
         self.tree.bind('<ButtonRelease-1>', self.click)
         self.tree_generate([])

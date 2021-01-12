@@ -11,6 +11,7 @@ from matplotlib.ticker import MultipleLocator, FormatStrFormatter
 import matplotlib.image as mpimg
 import matplotlib.animation as animation
 from PIL import Image
+from operator import itemgetter
 
 
 def plus_minus(r, s, RoH):
@@ -40,8 +41,20 @@ def yieldGames(gs):
         yield gs.iloc[i].values
 
 
+def gameMarkToSeason(gm):
+    season = gm[:4]
+    month = gm[4:6]
+    if int(month) > 9:
+        ss = '%s_%s' % (season, str(int(season) + 1))
+    else:
+        ss = '%s_%s' % (str(int(season) - 1), season)
+    if int(month) == 10 and ss == '2020_2021':
+        ss = '2019_2020'
+    return ss
+
+
 # 由gameMark推导出比赛文件目录
-def gameMarkToDir(gameMark, regularOrPlayoff, tp=0):
+def gameMarkToDir(gm, regularOrPlayoff, tp=0):
     '''
     :param gameMark: gm
     :param regularOrPlayoff: 'regular' or 'playoff(s)'
@@ -50,23 +63,31 @@ def gameMarkToDir(gameMark, regularOrPlayoff, tp=0):
     '''
     if regularOrPlayoff == 'playoff':
         regularOrPlayoff = 'playoffs'
-    seasonNum = gameMark[:4]
-    month = gameMark[4:6]
-    if int(month) > 9:
-        season = '%s_%s' % (seasonNum, str(int(seasonNum) + 1))
-    else:
-        season = '%s_%s' % (str(int(seasonNum) - 1), seasonNum)
-    if int(month) == 10 and season == '2020_2021':
-        season = '2019_2020'
+    ss = gameMarkToSeason(gm)
     if tp == 1:
-        gameDir = 'D:/sunyiwu/stat/data/seasons_shot/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_shot.pickle'
+        gameDir = 'D:/sunyiwu/stat/data/seasons_shot/%s/%s/' % (ss, regularOrPlayoff) + gm + '_shot.pickle'
     elif tp == 2:
-        gameDir = 'D:/sunyiwu/stat/data/seasons_boxscores/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_boxscores.pickle'
+        gameDir = 'D:/sunyiwu/stat/data/seasons_boxscores/%s/%s/' % (ss, regularOrPlayoff) + gm + '_boxscores.pickle'
     elif tp == 3:
-        gameDir = 'D:/sunyiwu/stat/data/seasons_scanned/%s/%s/' % (season, regularOrPlayoff) + gameMark + '_scanned.pickle'
+        gameDir = 'D:/sunyiwu/stat/data/seasons_scanned/%s/%s/' % (ss, regularOrPlayoff) + gm + '_scanned.pickle'
     else:
-        gameDir = 'D:/sunyiwu/stat/data/seasons/%s/%s/' % (season, regularOrPlayoff) + gameMark + '.pickle'
+        gameDir = 'D:/sunyiwu/stat/data/seasons/%s/%s/' % (ss, regularOrPlayoff) + gm + '.pickle'
     return gameDir
+
+
+def read_nba_pbp(file):
+    # print(file)
+    game = ''.join(LoadText(file))
+    if game and '[{"actionNumber"' in game:
+        actionList = eval(game[game.index('[{"actionNumber"'):game.index(',"source"')])
+    else:
+        actionList = None
+    tmp = game[game.index('{"gameId":'):game.index(',"playByPlay":{')]
+    tmp = tmp.replace('null', 'None', 100)
+    gameInf = eval(tmp)
+    # return sorted(actionList, key=itemgetter("actionNumber")), gameInf
+    # return actionList, gameInf
+    return actionList, gameInf
 
 
 def playerMarkToDir(pm, regularOrPlayoff, tp=0):
@@ -185,11 +206,14 @@ def LoadPickle(fileName):
     f.close()
     return content
 
+
 def LoadText(fileName):
-    f = open(fileName, 'r', encoding='utf-8')
-    content = f.readlines()
-    f.close()
-    return content
+    if os.path.exists(fileName):
+        f = open(fileName, 'r', encoding='utf-8')
+        content = f.readlines()
+        f.close()
+        return content
+
 
 # 获取网页源代码
 def getCode(url, encoding):
@@ -729,6 +753,7 @@ def scoreMethods(scoreMethod, playDisc, flag_GOMOA, flag_3=False):
         scoreMethod[flag_GOMOA][5] += 1
         # print(playDisc)
     return
+
 
 # 球员随比赛走势的得分等数据的（累积）趋势图
 def playerPerformanceWithTime(playerName, playerMark, HomeOrAts, colors, ROP):

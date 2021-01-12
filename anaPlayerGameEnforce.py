@@ -28,7 +28,7 @@ pms = list(enforce['Turnover'].keys())
 print()
 
 res_all = [{}, {}]
-for season in range(2012, 2013):
+for season in range(2019, 2020):
     ss = '%d_%d' % (season, season + 1)
     print(ss)
     for i in range(2):
@@ -92,23 +92,26 @@ for season in range(2012, 2013):
                         op_vop = op_stats[-2] / op_stats[-1]    # 对手得分/回合
                         op_drbp = (op_stats[11] - op_stats[9]) / op_stats[11]    # 对手DRB/TRB
                         op_sp = (op_stats[17] - op_stats[6]) / (op_stats[0] * 2 + op_stats[3])    # 对手运动战得分率（运动战实际得分/运动战出手理论最大得分）
+                        op_ftp = op_stats[8]
                         # ================ 球员本队数据准备 ================
                         tm_stats = plyr_ss[pm][ss][0][i][-1][2][6]
                         tm_pace = tm_stats[-1] / plyr_ss[pm][ss][0][i][0]  # 本队回合数
+                        tm_vop = tm_stats[-2] / tm_stats[-1]
+                        tm_drbp = (tm_stats[11] - tm_stats[9]) / tm_stats[11]
                         # ================ 分项计算 ================
                         pts_ = pts
                         orb_ = orb * plus_minus[4]
-                        drb_ = drb
+                        drb_ = drb * (1 - op_drbp) * op_vop
                         ast_ = ast * plus_minus[3]
                         stl_ = stl * plus_minus[0]
                         blk_ = blk * plus_minus[2] * op_sp
                         tov_ = - tov * plus_minus[1]
-                        pf_ = pf
-
+                        # pf_ = - pf * op_stats[6] / tm_stats[16]
+                        # bmiss_ = - tm_vop * tm_drbp * bmiss
                         # ================ 综合数据值 ================ 改进：1 投篮效率完全没有考虑！！！  2 盖帽需考虑对手命中率
                         # score = pts_ + drb * 0.45 + orb * plus_minus[4] + ast_ + stl * plus_minus[0] + blk * plus_minus[2] * 0.4 - tov * plus_minus[1] - pf * 1.2 - \
                         #         fmiss * 0.6 - 2 * bmiss * 0.36 - 3 * tmiss * 0.25
-                        score = pts_ + drb_ + orb_ + ast_ + stl_ + blk_ + tov_ - pf_ * 1.2
+                        score = pts_ + drb_ + orb_ + ast_ + stl_ + blk_ + tov_
                         # score = pts + orb * orb_plus + ast * ast_plus + stl * stl_plus + blk * blk_plus - tov * tov_minus - pf * 2 - fmiss - 2 * bmiss - 3 * tmiss
                         score = score / mp.mf()
                         score *= (lg_pace / tm_pace)

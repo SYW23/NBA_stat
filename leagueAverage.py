@@ -20,7 +20,7 @@ for season in range(1996, 2020):
             game = Game(gm, regularOrPlayoffs[i])
             _, _, _, record = game.game_scanner()
             tmplyrs = game.teamplyrs()
-            bx = game.boxscores(record)[:, 6, :]
+            bx = game.boxscores(record)['STAT']
             gametime = 48 if game.quarters == 4 else 48 + 5 * (game.quarters - 4)
             # 联盟赛季总和
             seasons[ss][i][0] += 1

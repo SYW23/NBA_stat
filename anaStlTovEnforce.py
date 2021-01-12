@@ -38,7 +38,7 @@ def new_player(pm, ss):
         plyrs[pm][i][-1][ss] = [0, MPTime('0:00.0'), 0, {'TOV': [0, 0]}, 0, [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]]
 
 
-for season in range(1996, 2020):
+for season in range(2000, 2001):
     count_games = [0, 0]  # 0reg1plf
     count_item = np.zeros((2, 3, 9))  # 0reg1plf    0客场球队1主场球队2总    0总1第一节2第二节3第三节4第四节5f加时6s加时7t加时8f加时
     count_time = [[[MPTime('0:00.0'), MPTime('0:00.0'), MPTime('0:00.0'), MPTime('0:00.0'), MPTime('0:00.0'), MPTime('0:00.0'), MPTime('0:00.0'), MPTime('0:00.0'), MPTime('0:00.0')],
