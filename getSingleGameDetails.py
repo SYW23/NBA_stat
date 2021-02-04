@@ -13,8 +13,8 @@ for season in range(2021, 2022):
         os.mkdir(seasonDir)
     if not os.path.exists(seasonDir + '/regular'):
         os.mkdir(seasonDir + '/regular')
-    if not os.path.exists(seasonDir + '/playoffs'):
-        os.mkdir(seasonDir + '/playoffs')
+    if not os.path.exists(seasonDir + '/playoff'):
+        os.mkdir(seasonDir + '/playoff')
     
     seasonuRegularSmmary = []
     seasonuPlayoffSmmary = []
@@ -52,7 +52,7 @@ for season in range(2021, 2022):
                 date = tr.find_all('th')[0].attrs['csk']
                 gameDetails = [date] + [x.get_text().strip() for x in tds]
                 # 判断比赛是否已保存
-                if not (os.path.exists(seasonDir + '/playoffs/%s.pickle' % date) or
+                if not (os.path.exists(seasonDir + '/playoff/%s.pickle' % date) or
                         os.path.exists(seasonDir + '/regular/%s.pickle' % date)):
                     # 比赛详细过程
                     if not tds[-4].a:
@@ -90,7 +90,7 @@ for season in range(2021, 2022):
                             pass
                     # 保存单场比赛数据
                     if regularOrPlayoff:
-                        writeToPickle(seasonDir + '/playoffs/%s.pickle' % date, gameProcess)
+                        writeToPickle(seasonDir + '/playoff/%s.pickle' % date, gameProcess)
                     else:
                         writeToPickle(seasonDir + '/regular/%s.pickle' % date, gameProcess)
                 # 更新赛季比赛列表

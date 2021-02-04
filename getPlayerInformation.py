@@ -70,6 +70,11 @@ for index, letter in enumerate(letters):
                 players['jonesma05'] = ['Mason Jones', '2021', '2021', 'G', '6-4', '200', 'July 21, 1998', 'Connors State College, Arkansas']
                 players['martike04'] = ['Kenyon Martin Jr.', '2021', '2021', 'F', '6-6', '215', 'January 6, 2001', '']
                 players['harrija01'] = ['Jalen Harris', '2021', '2021', 'G', '6-5', '195', 'August 14, 1998', 'Louisiana Tech, Nevada']
+                players['winstca01'] = ['Cassius Winston', '2021', '2021', 'G', '6-1', '185', '', '']
+                players['beyty01'] = ['Tyler Bey', '2021', '2021', 'F', '6-7', '215', 'February 10, 1998', '']
+                players['marshna01'] = ['Naji Marshall', '2021', '2021', 'F', '6-7', '220', 'January 24, 1998', '']
+                players['okongon01'] = ['Onyeka Okongwu', '2021', '2021', 'C', '6-8', '235', 'December 11, 2000', '']
+                players['haganas01'] = ['Ashton Hagans', '2021', '2021', 'G', '6-3', '190', 'July 8, 1999', '']
 writeToPickle('./data/playerBasicInformation.pickle', players)
 
 

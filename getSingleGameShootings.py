@@ -13,8 +13,8 @@ for season in range(2021, 2022):
         os.mkdir(seasonDir)
     if not os.path.exists(seasonDir + '/regular'):
         os.mkdir(seasonDir + '/regular')
-    if not os.path.exists(seasonDir + '/playoffs'):
-        os.mkdir(seasonDir + '/playoffs')
+    if not os.path.exists(seasonDir + '/playoff'):
+        os.mkdir(seasonDir + '/playoff')
 
     seasonURL = 'https://www.basketball-reference.com/leagues/NBA_%s_games.html' % str(season)
     seasonGames = getCode(seasonURL, 'UTF-8')
@@ -35,7 +35,7 @@ for season in range(2021, 2022):
                 # 比赛基本信息
                 date = tr.find_all('th')[0].attrs['csk']
                 # 判断比赛是否已保存
-                if not (os.path.exists(seasonDir + '/playoffs/%s_shot.pickle' % date) or
+                if not (os.path.exists(seasonDir + '/playoff/%s_shot.pickle' % date) or
                         os.path.exists(seasonDir + '/regular/%s_shot.pickle' % date)):
                     # 比赛详细过程
                     if not tds[-4].a:
@@ -55,7 +55,7 @@ for season in range(2021, 2022):
                             shootings[i].append([shoot.attrs['style'], shoot.attrs['tip'], shoot.attrs['class']])
                     # 保存单场比赛数据
                     if regularOrPlayoff:
-                        writeToPickle(seasonDir + '/playoffs/%s_shot.pickle' % date, shootings)
+                        writeToPickle(seasonDir + '/playoff/%s_shot.pickle' % date, shootings)
                     else:
                         writeToPickle(seasonDir + '/regular/%s_shot.pickle' % date, shootings)
             else:

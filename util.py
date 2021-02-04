@@ -53,6 +53,20 @@ def gameMarkToSeason(gm):
     return ss
 
 
+# 由nba版gm推出bbr版gm
+def gameMark_nba2bbr(gm, ss):
+    ht = gm[-7:-4].upper()
+    if ht == 'PHX':
+        ht = 'PHO'
+    elif ht == 'CHA' and (ss < '2004_2005' or ss > '2013_2014'):
+        ht = 'CHO'
+    elif ht == 'BKN':
+        ht = 'BRK'
+    elif ht == 'WAS' and ss < '1997_1998':
+        ht = 'WSB'
+    return gm[:4] + gm[5:7] + gm[8:10] + '0' + ht
+
+
 # 由gameMark推导出比赛文件目录
 def gameMarkToDir(gm, regularOrPlayoff, tp=0):
     '''
@@ -61,8 +75,8 @@ def gameMarkToDir(gm, regularOrPlayoff, tp=0):
     :param tp: 0->game  1->shot  2->boxscore  3->scanned
     :return:
     '''
-    if regularOrPlayoff == 'playoff':
-        regularOrPlayoff = 'playoffs'
+    if 'pickle' in gm:
+        gm = gm[:-7]
     ss = gameMarkToSeason(gm)
     if tp == 1:
         gameDir = 'D:/sunyiwu/stat/data/seasons_shot/%s/%s/' % (ss, regularOrPlayoff) + gm + '_shot.pickle'
@@ -76,10 +90,12 @@ def gameMarkToDir(gm, regularOrPlayoff, tp=0):
 
 
 def read_nba_pbp(file):
-    # print(file)
+    # print('读取文件', file)
     game = ''.join(LoadText(file))
     if game and '[{"actionNumber"' in game:
-        actionList = eval(game[game.index('[{"actionNumber"'):game.index(',"source"')])
+        tmp = game[game.index('[{"actionNumber"'):game.index(',"source"')]
+        tmp = tmp.replace('null', 'None', 3000)
+        actionList = eval(tmp)
     else:
         actionList = None
     tmp = game[game.index('{"gameId":'):game.index(',"playByPlay":{')]
@@ -213,6 +229,8 @@ def LoadText(fileName):
         content = f.readlines()
         f.close()
         return content
+    else:
+        print('文件不存在', fileName)
 
 
 # 获取网页源代码

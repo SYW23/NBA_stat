@@ -30,23 +30,23 @@ class ShowSingleGame(object):
         self.bt_w = 10
         self.paddingx = 5
         self.paddingy = 5
-        self.RoP = RoP
-        self.gm = gm
+        self.RoP = RoP if isinstance(RoP, int) else (1 if 'playoff' in RoP else 0)
+        self.gm = gm[:-7] if '.pickle' in gm else gm
         self.month = int(gm[4:6])
         self.season = int(gm[:4]) - 1 if self.month < 9 else int(gm[:4])
-        game = LoadPickle('../data/seasons_boxscores/%d_%d/%s/%s_boxscores.pickle' %
-                          (self.season, self.season + 1, 'playoffs' if RoP else 'regular', gm))
+        game = LoadPickle('D:/sunyiwu/stat/data/seasons_boxscores/%d_%d/%s/%s_boxscores.pickle' %
+                          (self.season, self.season + 1, 'playoff' if self.RoP else 'regular', self.gm))
         [self.roadteam, self.hometeam] = [x for x in game[0].keys()]
         self.res = game[0]
         self.tbs = game[1:]
         self.columns = None
         self.wd_gm = Toplevel()
-        self.wd_gm.iconbitmap('../images/nbahalfcourt.ico')
+        self.wd_gm.iconbitmap('D:/sunyiwu/stat/images/nbahalfcourt.ico')
         self.wd_gm.geometry('+250+100')
         self.frame_btn = None
         self.trees = []    # 存放主客队各一个数据表格
         self.ts = 0
-        self.pm2pn = LoadPickle('../data/playermark2playername.pickle')
+        self.pm2pn = LoadPickle('D:/sunyiwu/stat/data/playermark2playername.pickle')
 
     def button(self, text, n):
         return Button(self.frame_btn, text=text, width=self.bt_w, height=self.bt_h, compound='center',
@@ -96,7 +96,7 @@ class ShowSingleGame(object):
             self.ts = n
 
     def loop(self):
-        gmbg_img = Image.open("../images/james.jpg")
+        gmbg_img = Image.open("D:/sunyiwu/stat/images/james.jpg")
         gmbg_img.putalpha(64)
         gmbg_img = ImageTk.PhotoImage(gmbg_img)
         Label(self.wd_gm, image=gmbg_img).place(x=0, y=0, relwidth=1, relheight=1)
@@ -194,7 +194,7 @@ class ShowResults(object):
         self.paddingx = 10
         self.paddingy = 10
         self.wd_res = Toplevel()
-        self.wd_res.iconbitmap('../images/nbahalfcourt.ico')
+        self.wd_res.iconbitmap('D:/sunyiwu/stat/images/nbahalfcourt.ico')
         self.wd_res.geometry('1920x800+0+100')
         # self.wd_res.resizable(width=True, height=True)
         self.columns = columns
@@ -333,7 +333,7 @@ class ShowResults(object):
         self.tree.place(relx=0.005, rely=0.20, relwidth=0.97, relheight=0.76)
 
     def bkgdimg_and_note(self, text, stats):
-        resbg_img = Image.open("../images/kobe_bg.jpg")
+        resbg_img = Image.open("D:/sunyiwu/stat/images/kobe_bg.jpg")
         resbg_img.putalpha(64)
         resbg_img = ImageTk.PhotoImage(resbg_img)
         Label(self.wd_res, image=resbg_img).place(x=0, y=0, relwidth=1, relheight=1)

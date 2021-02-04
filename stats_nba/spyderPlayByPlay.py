@@ -11,11 +11,11 @@ from bs4 import BeautifulSoup
 import datetime
 import time
 
-date = datetime.datetime.strptime('2021-01-10', '%Y-%m-%d')
+date = datetime.datetime.strptime('2021-02-01', '%Y-%m-%d')
 delta = datetime.timedelta(days=1)
 today = time.strftime("%Y-%m-%d", time.localtime())
 today = str(datetime.datetime.strptime(today, '%Y-%m-%d') - delta)
-while str(date) < today:
+while str(date) <= today:
     datestr = date.strftime('%Y-%m-%d')
     # 日期页
     dateurl = 'https://www.nba.com/games?date=%s' % datestr

@@ -22,10 +22,10 @@ class Boxscore(object):
         # 0FG 1FGA 2FG% 33P 43PA 53P% 6FT 7FTA 8FT% 9ORB 10DRB 11TRB 12AST 13STL 14BLK 15TOV 16PF 17PTS 18BP 19MP 20+/-
 
     def default_qtr(self):
-        for tm in range(2):    # 单节上场球员技术统计初始化
-            self.qtr_stats[tm]['team'] = np.zeros((self.num_items,))
+        for tm in range(2):
+            self.qtr_stats[tm]['team'] = np.zeros((self.num_items,))    # 球队技术统计初始化
             for pm in self.plyrs_oncourt[tm]:
-                # [球员单节个人数据, [球员单节在场期间本队数据, 球员单节在场期间敌队数据]]
+                # 单节上场球员技术统计初始化  [球员单节个人数据, [球员单节在场期间本队数据, 球员单节在场期间敌队数据]]
                 self.qtr_stats[tm][pm] = [np.zeros((self.num_items,)), [np.zeros((self.num_items,)), np.zeros((self.num_items,))]]
 
     def default_mp(self, now):
@@ -49,14 +49,15 @@ class Boxscore(object):
                     for pm in self.plyrs_oncourt[tm]:
                         self.qtr_stats[tm][pm][1][0 if tm == pm_tm else 1][it] += 1    # 更新球员本队/敌队数据
 
-    def update_pace(self):    # 更新pace数据
+    def update_pace(self, bp):    # 更新pace数据
         ix = 18
+        delta = 0.5
         for tm in range(2):
-            self.qtr_stats[tm]['team'][ix] += 0.5
+            self.qtr_stats[tm]['team'][ix] += delta
             for pm in self.plyrs_oncourt[tm]:
-                self.qtr_stats[tm][pm][0][ix] += 0.5
-                self.qtr_stats[tm][pm][1][0][ix] += 0.5
-                self.qtr_stats[tm][pm][1][1][ix] += 0.5
+                self.qtr_stats[tm][pm][0][ix] += delta
+                self.qtr_stats[tm][pm][1][0][ix] += delta
+                self.qtr_stats[tm][pm][1][1][ix] += delta
 
     def update_pts(self, lst, rec, r):    # 更新得分类数据
         pt = lst[1]
@@ -75,20 +76,33 @@ class Boxscore(object):
             for pm in self.plyrs_oncourt[tm]:
                 self.qtr_stats[tm][pm][1][0 if tm == lst[2] else 1][ix] += pt
 
-    def swt(self, new):    # 节内发生换人，初始化新上场球员数据，更新场上阵容
+    def swt(self, new, t=0):    # 节内发生换人，初始化新上场球员数据，更新场上阵容    t = 0 节中换人  1 节中换人且最后一条记录未转换球权（202012220BRK {'Q': 2, 'T': '28:03.0', 'MS': ['jordade01', 1, 1], 'D': [2, 2], 'M': '', 'BP': 1, 'S': [49, 77]}）
         ix = 19
         for tm in range(2):
             on_pms = set(new['R'][tm]) - set(self.plyrs_oncourt[tm])
             off_pms = set(self.plyrs_oncourt[tm]) - set(new['R'][tm])
+            # 上场球员：记录上场时刻，初始化数据统计格式
             for on_pm in on_pms:
                 if on_pm not in self.plyrs_mp:
                     self.plyrs_mp[on_pm] = MPTime(new['T'])
                 if on_pm not in self.qtr_stats[tm]:
                     self.qtr_stats[tm][on_pm] = [np.zeros((self.num_items,)), [np.zeros((self.num_items,)), np.zeros((self.num_items,))]]
+                # if t:    # 节中换上场球员pace修正
+                self.qtr_stats[tm][on_pm][0][18] += 0.5
+                self.qtr_stats[tm][on_pm][1][0][18] += 0.5
+                self.qtr_stats[tm][on_pm][1][1][18] += 0.5
+            # 下场球员：累计上场时间
             for off_pm in off_pms:
                 assert off_pm in self.plyrs_mp
                 self.qtr_stats[tm][off_pm][0][ix] += (MPTime(new['T']) - self.plyrs_mp[off_pm]).secs()
                 self.plyrs_mp.pop(off_pm)
+                # if off_pm == 'wiggian01':
+                #     print(self.qtr_stats[0]['wiggian01'])
+                if t:    # 节中换下场球员pace修正
+                    self.qtr_stats[tm][off_pm][0][18] -= 0.5
+                    self.qtr_stats[tm][off_pm][1][0][18] -= 0.5
+                    self.qtr_stats[tm][off_pm][1][1][18] -= 0.5
+                    # print(off_pm, self.qtr_stats[tm][off_pm][0][18])
         self.plyrs_oncourt = new['R']
 
     def qtr_end_pm(self, n, tar, pmlst):    # 一节结束，更新球员本节数据到self.tdbxs的对应时间段
@@ -105,10 +119,13 @@ class Boxscore(object):
                     tar[tm][n][pm][1][0] += pmlst[tm][pm][1][0]
                     tar[tm][n][pm][1][1] += pmlst[tm][pm][1][1]
 
-    def cal_perc(self, tar):
+    def cal_perc(self, tar, accurate=0):
         for i in range(3):
             ix = i * 3 + 2
-            tar[ix] = tar[ix - 2] / tar[ix - 1] if tar[ix - 1] else float('nan')
+            if not accurate:
+                tar[ix] = float('%.3f' % (tar[ix - 2] / tar[ix - 1])) if tar[ix - 1] else float('nan')
+            else:
+                tar[ix] = tar[ix - 2] / tar[ix - 1] if tar[ix - 1] else float('nan')
 
     def qtr_end(self, qtr, new, end=0):    # 一节结束，整理本节数据（更新所有上过场球员的数据，包括基础和进阶）
         # 更新打至节末的球员的上场时间
@@ -158,8 +175,6 @@ class Boxscore(object):
                     print(i, list(self.tdbxs[1][0][i]))
                 else:
                     print(i, list(self.tdbxs[1][0][i][0]))
-            # print(self.tdbxs[0][0]['davisan02'])
-            # print(self.tdbxs[1][3]['caulewi01'])
             print(self.tdbxs[0][0]['team'])
             print(self.tdbxs[1][0]['team'])
             # 0FG 1FGA 2FG% 33P 43PA 53P% 6FT 7FTA 8FT% 9ORB 10DRB 11TRB 12AST 13STL 14BLK 15TOV 16PF 17PTS 18BP 19MP 20+/-
