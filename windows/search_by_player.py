@@ -37,7 +37,7 @@ class searchByPlyr(object):
         self.wd_.geometry('+500+20')
         self.stats_setting = {}    # 保存查询条件设置
         self.plyr_ent_value = StringVar()
-        self.plyr_ent_value.set('Oscar Robertson')
+        self.plyr_ent_value.set('LeBron James')
         self.RoP = StringVar()
         self.RoP.set(None)
         self.AoS = StringVar()

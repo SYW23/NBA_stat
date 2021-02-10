@@ -11,6 +11,7 @@ from util import gameMarkToSeason, gameMarkToDir, LoadPickle, writeToPickle, rea
 from klasses.Game import Game
 from klasses.miscellaneous import MPTime
 from windows.result_windows import ShowSingleGame
+import matplotlib.pyplot as plt
 
 
 class GameReviewer(object):
@@ -61,91 +62,91 @@ class GameReviewer(object):
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % ((bxsc[0] + 0.5 * bxsc[3]) / bxsc[1] * 100)
+            tmp[i] = (bxsc[0] + 0.5 * bxsc[3]) / bxsc[1]
         return tmp
 
     def TOVperc(self):    # 四要素之一：失误率
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % (bxsc[15] / bxsc[18] * 100)
+            tmp[i] = bxsc[15] / bxsc[18]
         return tmp
 
     def ORBperc(self):    # 四要素之一：进攻篮板率
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % (bxsc[9] / (bxsc[9] + self.bxs.tdbxs[i - 1][0]['team'][10]) * 100)
+            tmp[i] = bxsc[9] / (bxsc[9] + self.bxs.tdbxs[i - 1][0]['team'][10])
         return tmp
 
     def FTr(self):    # 四要素之一：造罚球率
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % (bxsc[6] / bxsc[1] * 100)
+            tmp[i] = bxsc[6] / bxsc[1]
         return tmp
 
     def FTPtPTsperc(self):    # 罚球得分占比
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % (bxsc[6] / bxsc[17] * 100)
+            tmp[i] = bxsc[6] / bxsc[17]
         return tmp
 
     def FTprop(self):    # 罚球出手/运动战出手比
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % (bxsc[7] / bxsc[1] * 100)
+            tmp[i] = bxsc[7] / bxsc[1]
         return tmp
 
     def FTperc(self):    # 罚球命中率
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % (bxsc[6] / bxsc[7] * 100)
+            tmp[i] = bxsc[6] / bxsc[7]
         return tmp
 
     def twoPtperc(self):    # 两分球命中率
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % ((bxsc[0] - bxsc[3]) / (bxsc[1] - bxsc[4]) * 100)
+            tmp[i] = (bxsc[0] - bxsc[3]) / (bxsc[1] - bxsc[4])
         return tmp
 
     def twoPtprop(self):    # 两分球出手占比
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % ((bxsc[1] - bxsc[4]) / bxsc[1] * 100)
+            tmp[i] = (bxsc[1] - bxsc[4]) / bxsc[1]
         return tmp
 
     def twoPtPTsperc(self):    # 两分球得分占比
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % ((bxsc[0] - bxsc[3]) * 2 / bxsc[17] * 100)
+            tmp[i] = (bxsc[0] - bxsc[3]) * 2 / bxsc[17]
         return tmp
 
     def threePtperc(self):    # 三分球命中率
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % (bxsc[3] / bxsc[4] * 100)
+            tmp[i] = bxsc[3] / bxsc[4]
         return tmp
 
     def threePtprop(self):    # 三分球出手占比
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % (bxsc[4] / bxsc[1] * 100)
+            tmp[i] = bxsc[4] / bxsc[1]
         return tmp
 
     def threePtPTsperc(self):    # 三分球得分占比
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
-            tmp[i] = '%.2f%%' % (bxsc[3] * 3 / bxsc[17] * 100)
+            tmp[i] = bxsc[3] * 3 / bxsc[17]
         return tmp
 
     def fourfactors(self):
@@ -157,10 +158,10 @@ class GameReviewer(object):
         for ix, rec in enumerate(self.game.gn.record):
             if 'MK' in rec and 'AST' in rec:
                 asts[rec['MK'][1] - 2][rec['MK'][2]] += 1
-        asts[0][0] = '%.2f%%' % (asts[0][0] / (self.bxs.tdbxs[0][0]['team'][0] - self.bxs.tdbxs[0][0]['team'][3]) * 100)
-        asts[0][1] = '%.2f%%' % (asts[0][1] / (self.bxs.tdbxs[1][0]['team'][0] - self.bxs.tdbxs[1][0]['team'][3]) * 100)
-        asts[1][0] = '%.2f%%' % (asts[1][0] / self.bxs.tdbxs[0][0]['team'][3] * 100)
-        asts[1][1] = '%.2f%%' % (asts[1][1] / self.bxs.tdbxs[1][0]['team'][3] * 100)
+        asts[0][0] = asts[0][0] / (self.bxs.tdbxs[0][0]['team'][0] - self.bxs.tdbxs[0][0]['team'][3])
+        asts[0][1] = asts[0][1] / (self.bxs.tdbxs[1][0]['team'][0] - self.bxs.tdbxs[1][0]['team'][3])
+        asts[1][0] = asts[1][0] / self.bxs.tdbxs[0][0]['team'][3] if self.bxs.tdbxs[0][0]['team'][3] else -1
+        asts[1][1] = asts[1][1] / self.bxs.tdbxs[1][0]['team'][3] if self.bxs.tdbxs[1][0]['team'][3] else -1
         return pd.DataFrame([self.twoPtperc(), self.twoPtprop(), self.twoPtPTsperc(), asts[0],
                              self.threePtperc(), self.threePtprop(), self.threePtPTsperc(), asts[1],
                              self.FTperc(), self.FTprop(), self.FTPtPTsperc()],
@@ -187,9 +188,11 @@ class GameReviewer(object):
                     d = self.distance(rec)
                     # print(d, rec)
                     # ==================== paint得分 ====================
-                    if rec[item][1] > 1 and -80 <= rec['C'][0] <= 80 and rec['C'][1] <= 140:
+                    if rec[item][1] > 1 and -80 <= rec['C'][0] <= 80 and rec['C'][1] < 140:
                         if GoM:
                             paintpts[rec['MK'][2]] += rec['MK'][1]
+                            # if rec['MK'][2] == 1:
+                            #     print(rec)
                         if d <= 4:
                             xx = 10
                         else:
@@ -239,20 +242,18 @@ class GameReviewer(object):
         ads = [[], []]
         for i in range(len(self.dist)):
             for tm in range(2):
-                if i == 10:
-                    ads[tm].append(['------', '------', '------', '------', '------', '------'])
-                pre = '%d/%d' % (shots[tm][1][i], shots[tm][0][i] + shots[tm][1][i])    # FG/FGA
-                tail = ['%.2f%%' % (shots[tm][1][i] / self.bxs.tdbxs[tm][0]['team'][0] * 100),
-                        '%.2f%%' % ((shots[tm][0][i] + shots[tm][1][i]) / self.bxs.tdbxs[tm][0]['team'][1] * 100),
-                        '%.2f%%' % (shots[tm][1][i] * (3 if 5 <= i <= 9 or i > 12 else 2) / self.bxs.tdbxs[tm][0]['team'][17] * 100)]    # 区域命中比例、出手比例、得分比例
+                pre = [shots[tm][1][i], shots[tm][0][i] + shots[tm][1][i]]    # FG/FGA
+                tail = [shots[tm][1][i] / self.bxs.tdbxs[tm][0]['team'][0],
+                        (shots[tm][0][i] + shots[tm][1][i]) / self.bxs.tdbxs[tm][0]['team'][1],
+                        shots[tm][1][i] * (3 if 5 <= i <= 9 or i > 12 else 2) / self.bxs.tdbxs[tm][0]['team'][17]]    # 区域命中比例、出手比例、得分比例
                 if shots[tm][1][i]:
-                    ads[tm].append([pre, '%.2f%%' % (shots[tm][1][i] / (shots[tm][0][i] + shots[tm][1][i]) * 100), '%.2f%%' % (shots[tm][2][i] / shots[tm][1][i] * 100)] + tail)
+                    ads[tm].append(pre + [shots[tm][1][i] / (shots[tm][0][i] + shots[tm][1][i]), shots[tm][2][i] / shots[tm][1][i]] + tail)
                 else:
                     if shots[tm][0][i] + shots[tm][1][i]:
-                        ads[tm].append([pre, '%.2f%%' % (shots[tm][1][i] / (shots[tm][0][i] + shots[tm][1][i]) * 100), '/  '] + tail)
+                        ads[tm].append(pre + [shots[tm][1][i] / (shots[tm][0][i] + shots[tm][1][i]), -1] + tail)
                     else:
-                        ads[tm].append([pre, '/  ', '/  '] + tail)
-        ads = [pd.DataFrame(x, index=self.dist[:10] + ['     -----------'] + self.dist[10:], columns=['FG/FGA', '%', 'ASTed%', 'FG%', 'FGA%', 'PTS%']) for x in ads]
+                        ads[tm].append(pre + [-1, -1] + tail)
+        ads = [pd.DataFrame(x, index=self.dist, columns=['FG', 'FGA', '%', 'ASTed%', 'FG%', 'FGA%', 'PTS%']) for x in ads]
         # ==================== 基础对比数据 ====================
         for ix, rec in enumerate(self.record):
             # ==================== 交替领先、平分、连续得分 ====================
@@ -283,16 +284,18 @@ class GameReviewer(object):
             if rec['S'][li] != rec['S'][li - 1] and rec['S'][li] - rec['S'][li - 1] > leadmax[li]:
                 leadmax[li] = rec['S'][li] - rec['S'][li - 1]
             # ==================== 跨节 ====================
-            if len(rec) == 4:
+            if len(rec) == 4 or (ix > 0 and rec['Q'] != self.record[ix - 1]['Q']):
                 zoomtov, zoomorb = 0, 0
                 bptov, bporb = -1, -1
             # ==================== 利用失误得分 ====================
             if zoomtov:
-                if 'MK' in rec:
+                if 'MK' in rec and rec['M'] != 'technical':
                     if rec['MK'][-1] == bptov:
                         tovpts[bptov] += rec['MK'][1]
+                        # print(rec)
                     else:
-                        print(self.game.gm, rec)
+                        if rec['M'] != 'technical':
+                            print('失误得分存疑', self.game.gm, rec)
                 if rec['BP'] != bptov:
                     zoomtov = 0
                     bptov = -1
@@ -306,51 +309,162 @@ class GameReviewer(object):
                         # print(rec)
                         orbpts[bporb] += rec['MK'][1]
                     else:
-                        print(self.game.gm, rec)
+                        if rec['M'] != 'technical':
+                            print('二次进攻得分存疑', self.game.gm, rec)
                 if rec['BP'] != bporb:
                     zoomorb = 0
                     bporb = -1
-            if 'ORB' in rec and (rec['ORB'] != 'Team' or ('MS' in self.record[ix - 1] and self.record[ix - 1]['MS'][1] > 1)):
+            if 'ORB' in rec and (rec['ORB'] != 'Team' or ('MS' in self.record[ix - 1] and self.record[ix - 1]['MS'][1] > 1) or ('MS' in self.record[ix - 1] and self.record[ix - 1]['D'][1] == self.record[ix - 1]['D'][0])):
                 bporb = rec['BP']
                 zoomorb = 1
 
+        # print(self.game.gm, tovpts[0], orbpts[0], paintpts[0], tovpts[1], orbpts[1], paintpts[1])
         # ==================== 汇总数据 ====================
         return pd.DataFrame([[self.bxs.tdbxs[0][0]['team'][-3], self.bxs.tdbxs[1][0]['team'][-3]],
-                             tovpts, ['%.2f%%' % (tovpts[0] / self.bxs.tdbxs[0][0]['team'][-4] * 100), '%.2f%%' % (tovpts[1] / self.bxs.tdbxs[1][0]['team'][-4] * 100)],
-                             orbpts, ['%.2f%%' % (orbpts[0] / self.bxs.tdbxs[0][0]['team'][-4] * 100), '%.2f%%' % (orbpts[1] / self.bxs.tdbxs[1][0]['team'][-4] * 100)],
-                             paintpts, ['%.2f%%' % (paintpts[0] / self.bxs.tdbxs[0][0]['team'][-4] * 100), '%.2f%%' % (paintpts[1] / self.bxs.tdbxs[1][0]['team'][-4] * 100)],
-                             leadmax, [leaderchange, leaderchange],
-                             [tie, tie], longestrun],
+                             tovpts, [tovpts[0] / self.bxs.tdbxs[0][0]['team'][-4], tovpts[1] / self.bxs.tdbxs[1][0]['team'][-4]],
+                             orbpts, [orbpts[0] / self.bxs.tdbxs[0][0]['team'][-4], orbpts[1] / self.bxs.tdbxs[1][0]['team'][-4]],
+                             paintpts, [paintpts[0] / self.bxs.tdbxs[0][0]['team'][-4], paintpts[1] / self.bxs.tdbxs[1][0]['team'][-4]],
+                             leadmax, [leadmax[0] / self.bxs.tdbxs[0][0]['team'][-4], leadmax[1] / self.bxs.tdbxs[1][0]['team'][-4]],
+                             longestrun, [longestrun[0] / self.bxs.tdbxs[0][0]['team'][-4], longestrun[1] / self.bxs.tdbxs[1][0]['team'][-4]],
+                             [leaderchange, leaderchange], [tie, tie]],
                             index=['     pace',
                                    '     pts off tovs', '     pts% off tovs',
                                    '     2nd chance pts', '     2nd chance pts%',
                                    '     pts in the paint', '     pts% in the paint',
-                                   '     biggest lead', '     lead changes',
-                                   '     times tied', '     longest run'],
+                                   '     biggest lead', '     biggest lead pts%',
+                                   '     longest run', '     longest run pts%',
+                                   '     lead changes', '     times tied'],
                             columns=list(self.game.bxscr[0])), ads
 
 
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoff']
     items = set()
-    for season in range(2020, 2021):
-        ss = '%d_%d' % (season, season + 1)
-        for i in range(2):
+    for i in range(1):
+        cmps_all, cmps_shts_area_all, basic_all, count_game = np.zeros((25,)), np.zeros((16, 7)), np.zeros((17, )), 0
+        cmps_by_season, basic_by_season = {}, {}
+        for season in range(2000, 2021):
+            ss = '%d_%d' % (season, season + 1)
+            cmps_season = np.zeros((25,))
+            cmps_shts_area_season = np.zeros((16, 7))
+            basic_season = np.zeros((17, ))
+            count_game_season = 0
             gms = os.listdir('D:/sunyiwu/stat/data/seasons/%s/%s/' % (ss, regularOrPlayoffs[i]))
-            for gm in gms[2:3]:
+            for gm in tqdm(gms):
+                cmps = pd.DataFrame()
+                count_game += 1
+                count_game_season += 1
+                # print(gm)
                 gr = GameReviewer(gm, regularOrPlayoffs[i])
-                basic, ads = gr.game_counter()
-                print('\n', gr.game.gm)
-                print('\n\t', '▶基本数据:')
-                print(basic)
-                print('\n\t', '▶四要素:')
-                print(gr.fourfactors())
-                print('\n\t', '▶投篮(命中率、出手占比、得分占比、受助攻率):')
-                print(gr.shooting())
-                print('\n\t', '▶投篮分布:')
-                for tm in range(2):
-                    print('\t 主队 %s' % list(gr.game.bxscr[0])[1] if tm else '\t 客队 %s' % list(gr.game.bxscr[0])[0])
-                    print(ads[tm])
-                    print()
+                tms = list(gr.game.bxscr[0])
+                scores = [gr.game.bxscr[0][x][0] for x in gr.game.bxscr[0]]
+                winner = 1 if scores[0] < scores[1] else 0
 
-                ShowSingleGame(gm, regularOrPlayoffs[i])
+                # 基础数据看胜率
+                cmp = gr.bxs.tdbxs[winner][0]['team'][:-4] >= gr.bxs.tdbxs[winner - 1][0]['team'][:-4]
+                cmp = cmp.astype(int)
+                basic_all += cmp
+                basic_season += cmp
+                # print(basic_all)
+
+                basic, ads = gr.game_counter()
+                ffs = gr.fourfactors()
+                shts = gr.shooting()
+                # for tm in range(2):
+                #     print('\t 主队 %s' % list(gr.game.bxscr[0])[1] if tm else '\t 客队 %s' % list(gr.game.bxscr[0])[0])
+                #     print(ads[tm])
+                #     print(ads[tm].shape)
+                #     print()
+
+                # 衍生数据看胜率
+                cmps = cmps.append(basic[1:11])
+                cmps = cmps.append(ffs)
+                cmps = cmps.append(shts)
+                cmp = cmps[tms[winner]] >= cmps[tms[winner - 1]]
+                cmp = cmp.astype(int).values
+                cmps_all += cmp
+                cmps_season += cmp
+
+                # 投篮分布看胜率
+                cmp = ads[winner] >= ads[winner - 1]
+                cmp = cmp.astype(int).values
+                cmps_shts_area_all += cmp
+                cmps_shts_area_season += cmp
+            cmps_by_season[ss] = [cmps_season, cmps_shts_area_season, basic_season, count_game_season]
+        print(count_game)
+        items = ['     pts off tovs', '     pts% off tovs', '     2nd chance pts', '     2nd chance pts%',
+                 '     pts in the paint', '     pts% in the paint', '     biggest lead', '     biggest lead pts%',
+                 '     longest run', '     longest run pts%', '     eFG%', '     TOV%', '     ORB%', '     FT/FGA',
+                 '     2PT %', '     2PT FGA%', '     2PT PTS%', '     2PT ASTed%',
+                 '     3PT %', '     3PT FGA%', '     3PT PTS%', '     3PT ASTed%',
+                 '     FT %', '     FTA/FGA', '     FT PTS%']
+        cmps_all = list(cmps_all.T)
+        cmps_all[11] = count_game - cmps_all[11]
+        for ix, it in enumerate(cmps_all):
+            cmps_all[ix] = [cmps_all[ix] / count_game, items[ix]]
+        cmps_all.sort(reverse=True)
+        for it in cmps_all:
+            print(it)
+        print()
+
+        items = ['FG', 'FGA', 'FG%', '3P', '3PA', '3P%', 'FT', 'FTA', 'FT%', 'ORB', 'DRB', 'TRB', 'AST', 'STL', 'BLK', 'TOV', 'PF']
+        basic_all[15] = count_game - basic_all[15]
+        basic_all /= count_game
+        basic_all = list(basic_all)
+        for ix, it in enumerate(basic_all):
+            basic_all[ix] = [basic_all[ix], items[ix]]
+        basic_all.sort(reverse=True)
+        for it in basic_all:
+            print(it)
+
+        cmps_shts_area_all = pd.DataFrame(cmps_shts_area_all / count_game, index=list(ads[0].index), columns=ads[0].columns)
+        print(cmps_shts_area_all)
+        fig = plt.figure('Image', figsize=(10, 4))
+        ax = fig.add_subplot(1, 1, 1)
+        img = ax.imshow(cmps_shts_area_all.values)
+        cols = list(cmps_shts_area_all.columns)
+        ixs = list(cmps_shts_area_all.index)
+        ax.set_xticks(np.arange(len(cols)))
+        ax.set_xticklabels(cols)
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+                 rotation_mode="anchor")
+        ax.set_yticks(np.arange(len(ixs)))
+        ax.set_yticklabels(ixs)
+
+        for y in range(cmps_shts_area_all.shape[0]):
+            for x in range(cmps_shts_area_all.shape[1]):
+                text = ax.text(x, y, '%.2f' % cmps_shts_area_all[cols[x]][y],
+                               ha="center", va="center", color="w")
+
+        # h1 = plt.contourf(cmps_shts_area_all)
+        fig.colorbar(img, ax=ax)
+        plt.show()
+
+    writeToPickle('D:/sunyiwu/stat/data/winning_point.pickle', [[cmps_all, cmps_shts_area_all, basic_all, count_game], cmps_by_season])
+
+# 5048  2016-2021
+# [0.8098256735340729, '     eFG%']
+# [0.803486529318542, '     biggest lead']
+# [0.7977416798732171, '     biggest lead pts%']
+# [0.7022583201267829, '     3PT %']
+# [0.6816561014263075, '     2PT %']
+# [0.6024167987321711, '     TOV%']
+# [0.5919175911251982, '     pts off tovs']
+# [0.5845879556259905, '     FT/FGA']
+# [0.5711172741679873, '     ORB%']
+# [0.5673534072900158, '     FTA/FGA']
+# [0.5635895404120443, '     3PT PTS%']
+# [0.563391442155309, '     pts in the paint']
+# [0.5427892234548336, '     FT %']
+# [0.5382329635499208, '     2PT ASTed%']
+# [0.5311014263074485, '     pts% off tovs']
+# [0.5124801901743264, '     2nd chance pts']
+# [0.5116877971473851, '     3PT FGA%']
+# [0.4954437400950872, '     FT PTS%']
+# [0.4857369255150555, '     2PT FGA%']
+# [0.46414421553090335, '     2nd chance pts%']
+# [0.43898573692551507, '     3PT ASTed%']
+# [0.43561806656101426, '     2PT PTS%']
+# [0.4348256735340729, '     pts% in the paint']
+# [0.2539619651347068, '     longest run']
+# [0.22404912836767035, '     longest run pts%']

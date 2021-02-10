@@ -41,7 +41,11 @@ class Boxscore(object):
                     # print(self.gm, rec, r)
                     # self.plyrs_oncourt = r['R']
                     # self.plyrs_mp[lst[0]] = MPTime(rec['T'])
-                    assert rec['T'] == r['T'] or ('plyr' in rec and rec['plyr'] == 'barrybr01')
+                    try:
+                        assert rec['T'] == r['T'] or ('plyr' in rec and rec['plyr'] == 'barrybr01')
+                    except:
+                        print(self.gm, rec, r)
+                        raise KeyError
                     self.qtr_stats[pm_tm][pm_stat] = [np.zeros((self.num_items,)), [np.zeros((self.num_items,)), np.zeros((self.num_items,))]]
                 self.qtr_stats[pm_tm][pm_stat][0][it] += 1    # 更新球员本人数据
                 self.qtr_stats[pm_tm]['team'][it] += 1
@@ -66,7 +70,11 @@ class Boxscore(object):
             # print(self.gm, rec, r)
             if lst[0] not in self.plyrs_mp:
                 self.plyrs_mp[lst[0]] = MPTime(rec['T'])
-            assert rec['T'] == r['T']
+            try:
+                assert rec['T'] == r['T']
+            except:
+                print(self.gm, rec, r)
+                raise KeyError
             if lst[0] not in self.qtr_stats[lst[2]]:
                 self.qtr_stats[lst[2]][lst[0]] = [np.zeros((self.num_items,)), [np.zeros((self.num_items,)), np.zeros((self.num_items,))]]
             self.qtr_stats[lst[2]][lst[0]][1][0][ix] += pt

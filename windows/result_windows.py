@@ -23,7 +23,7 @@ def process(p):
 
 
 class ShowSingleGame(object):
-    def __init__(self, gm, RoP):
+    def __init__(self, gm, RoP, main=0):
         self.fontsize = 10
         self.col_w = 8
         self.bt_h = 2
@@ -40,7 +40,11 @@ class ShowSingleGame(object):
         self.res = game[0]
         self.tbs = game[1:]
         self.columns = None
-        self.wd_gm = Toplevel()
+        if not main:
+            self.wd_gm = Toplevel()
+        else:
+            self.wd_gm = Tk()
+        self.wd_gm.title('单场比赛')
         self.wd_gm.iconbitmap('D:/sunyiwu/stat/images/nbahalfcourt.ico')
         self.wd_gm.geometry('+250+100')
         self.frame_btn = None
@@ -58,7 +62,7 @@ class ShowSingleGame(object):
     def insert_tree(self, ll, tr):
         for i, r in enumerate(ll):
             tmp = r * 1
-            if r[0] != 'Team Totals':
+            if r[0] != 'Team Totals' and tmp[0] in self.pm2pn:
                 tmp[0] = self.pm2pn[tmp[0]]
             tr.insert('', i, values=tuple(tmp)) if len(r) > 2 else tr.insert('', i, values=tuple(tmp[:1]))
 
@@ -66,7 +70,7 @@ class ShowSingleGame(object):
         self.columns = self.tbs[0][0][0]
         for ind, tr in enumerate(self.trees):
             for i in self.tbs[self.ts][ind][0]:
-                tr.column(i, width=150, anchor='center') if i == 'players' else tr.column(i, width=60, anchor='center')
+                tr.column(i, width=180, anchor='center') if i == 'players' else tr.column(i, width=60, anchor='center')
                 tr.heading(i, text=i)
             self.insert_tree(self.tbs[self.ts][ind][1:], tr)    # 逐条插入数据
         for ind, i in enumerate(self.trees):    # 滚动条与布局
@@ -354,7 +358,8 @@ class ShowSingleResults(ShowResults):
 
     def double(self, event):
         gm = self.dates[int(self.tree.selection()[0][1:], 16) - 1]
-        game_win = ShowSingleGame(gm, self.RP)
+        print(gm)
+        game_win = ShowSingleGame(gm, self.RP, main=0)
         game_win.loop()
 
     def tree_generate(self):
