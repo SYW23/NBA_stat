@@ -340,6 +340,7 @@ class GameReviewer(object):
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoff']
     items = set()
+    tp = 0    # 0单场比赛某项数据大于等于对手时的胜率  1单场比赛两队某项数据的均值  2单场比赛赢球球队某项数据值  3单场比赛输球球队某项数据值
     for i in range(1):
         cmps_all, cmps_shts_area_all, basic_all, count_game = np.zeros((25,)), np.zeros((16, 7)), np.zeros((17, )), 0
         cmps_by_season, basic_by_season = {}, {}
@@ -361,8 +362,15 @@ if __name__ == '__main__':
                 winner = 1 if scores[0] < scores[1] else 0
 
                 # 基础数据看胜率
-                cmp = gr.bxs.tdbxs[winner][0]['team'][:-4] >= gr.bxs.tdbxs[winner - 1][0]['team'][:-4]
-                cmp = cmp.astype(int)
+                if tp == 1:
+                    cmp = (gr.bxs.tdbxs[winner][0]['team'][:-4] + gr.bxs.tdbxs[winner - 1][0]['team'][:-4]) / 2
+                elif tp == 2:
+                    cmp = gr.bxs.tdbxs[winner][0]['team'][:-4]
+                elif tp == 3:
+                    cmp = gr.bxs.tdbxs[winner - 1][0]['team'][:-4]
+                else:
+                    cmp = gr.bxs.tdbxs[winner][0]['team'][:-4] >= gr.bxs.tdbxs[winner - 1][0]['team'][:-4]
+                    cmp = cmp.astype(int)
                 basic_all += cmp
                 basic_season += cmp
                 # print(basic_all)
@@ -380,14 +388,32 @@ if __name__ == '__main__':
                 cmps = cmps.append(basic[1:11])
                 cmps = cmps.append(ffs)
                 cmps = cmps.append(shts)
-                cmp = cmps[tms[winner]] >= cmps[tms[winner - 1]]
-                cmp = cmp.astype(int).values
+                if tp == 1:
+                    cmp = (cmps[tms[winner]] + cmps[tms[winner - 1]]) / 2
+                elif tp == 2:
+                    cmp = cmps[tms[winner]]
+                    # print(cmp)
+                elif tp == 3:
+                    cmp = cmps[tms[winner - 1]]
+                    # print(cmp)
+                else:
+                    cmp = cmps[tms[winner]] >= cmps[tms[winner - 1]]
+                    cmp = cmp.astype(int)
+                cmp = cmp.values
                 cmps_all += cmp
                 cmps_season += cmp
 
                 # 投篮分布看胜率
-                cmp = ads[winner] >= ads[winner - 1]
-                cmp = cmp.astype(int).values
+                if tp == 1:
+                    cmp = (ads[winner] + ads[winner - 1]) / 2
+                elif tp == 2:
+                    cmp = ads[winner]
+                elif tp == 3:
+                    cmp = ads[winner - 1]
+                else:
+                    cmp = ads[winner] >= ads[winner - 1]
+                    cmp = cmp.astype(int)
+                cmp = cmp.values
                 cmps_shts_area_all += cmp
                 cmps_shts_area_season += cmp
             cmps_by_season[ss] = [cmps_season, cmps_shts_area_season, basic_season, count_game_season]
@@ -440,7 +466,7 @@ if __name__ == '__main__':
         fig.colorbar(img, ax=ax)
         plt.show()
 
-    writeToPickle('D:/sunyiwu/stat/data/winning_point.pickle', [[cmps_all, cmps_shts_area_all, basic_all, count_game], cmps_by_season])
+    writeToPickle('D:/sunyiwu/stat/data/winning_point%d.pickle' % tp, [[cmps_all, cmps_shts_area_all, basic_all, count_game], cmps_by_season])
 
 # 5048  2016-2021
 # [0.8098256735340729, '     eFG%']

@@ -75,6 +75,16 @@ for index, letter in enumerate(letters):
                 players['marshna01'] = ['Naji Marshall', '2021', '2021', 'F', '6-7', '220', 'January 24, 1998', '']
                 players['okongon01'] = ['Onyeka Okongwu', '2021', '2021', 'C', '6-8', '235', 'December 11, 2000', '']
                 players['haganas01'] = ['Ashton Hagans', '2021', '2021', 'G', '6-3', '190', 'July 8, 1999', '']
+                players['whittgr01'] = ['Greg Whittington', '2021', '2021', 'F', '6-8', '210', 'February 7, 1993', 'Georgetown']
+                players['magnawi01'] = ['Will Magnay', '2021', '2021', 'C', '6-10', '234', 'June 10, 1998', 'Tulsa']
+                players['cannade01'] = ['Devin Cannady', '2021', '2021', 'G', '6-2', '183', 'May 21, 1996', 'Princeton']
+                players['brookar01'] = ['Armoni Brooks', '2021', '2021', 'G', '6-3', '195', 'June 5, 1998', '']
+                players['fittsma01'] = ['Malik Fitts', '2021', '2021', 'F', '6-8', '230', 'July 4, 1997', "South Florida, Saint Mary's"]
+                players['gillefr01'] = ['Freddie Gillespie', '2021', '2021', 'F', '6-9', '245', 'June 14, 1997', 'Carleton College, Baylor']
+                players['frankro01'] = ['Robert Franks', '2021', '2021', 'F', '6-7', '225', 'December 18, 1996', 'Washington State']
+                players['oliveca01'] = ['Cameron Oliver', '2021', '2021', 'F', '6-8', '239', 'July 11, 1996', 'Nevada']
+                players['louzama01'] = ['Didi Louzada', '2021', '2021', 'F', '6-5', '188', 'February 7, 1999', '']
+                players['bryanel01'] = ['Elijah Bryant', '2021', '2021', 'G', '6-5', '210', 'April 19, 1995', 'Elon University, BYU']
 writeToPickle('./data/playerBasicInformation.pickle', players)
 
 

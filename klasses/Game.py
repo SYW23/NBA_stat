@@ -144,12 +144,15 @@ class Game(object):
         plyrNo = []
         lastMin = []
         for ac in self.nba_actions:
-            if ac['actionType'] not in actionType:
-                actionType.append(ac['actionType'])
+            act = ac['actionType']
+            if act and act != 'period' and len(act) != 40:
+                act += (' ' * (40 - len(act)))
+            if act not in actionType:
+                actionType.append(act)
             if 'playerName' in ac and ac['playerName'] and ac['personId'] not in plyrNo:
                 plyrNo.append(ac['personId'])
                 # print(d['personId'], d['playerName'])
-            if ac['actionType'] != 'period':
+            if act != 'period':
                 t = ac['clock'][2:-1]
                 if int(t.split('M')[0]) < 1 or (int(t.split('M')[0]) == 1 and t.split('M')[1] == '00.00'):
                     lastMin.append(ac)
@@ -165,7 +168,11 @@ class Game(object):
         # print(rec)
         for ix, ac in enumerate(self.nba_lastMins):
             if rec['Q'] == ac['period'] - 1:
-                if ac['actionType'] and ac['actionType'] != 'period':
+                act = ac['actionType']
+                # print(act)
+                if act and act != 'period' and len(act) != 40:
+                    act += (' ' * (40 - len(act)))
+                if act and act != 'period':
                     qnow = float(ac['clock'][2:-1].split('M')[1])
                     qnow_ = int(qnow) if self.ss < '2013_2014' or self.ss > '2016_2017' else round(qnow)
                     if self.ss >= '2013_2014' and self.ss <= '2016_2017' and '.5' in str(qnow) and int(qnow) % 2 == 0:
@@ -174,7 +181,7 @@ class Game(object):
                         qnow_ = 60
                     # print(qnow_, ac)
                     # print(s, rec)
-                    items = [actionTrans[ac['actionType']]] if isinstance(actionTrans[ac['actionType']], str) else actionTrans[ac['actionType']]
+                    items = [actionTrans[act]] if isinstance(actionTrans[act], str) else actionTrans[act]
                     pm_nba = ac['playerName'].replace('-', '').replace("'", '').replace(' ', '') if ac['playerName'] else ''
                     if pm_nba == 'WorldPeace':
                         pm_nba = 'artesron'
@@ -628,7 +635,11 @@ class Game(object):
                     elif 'enters' in rec:
                         tmp = rec.split(' ')
                         if tmp[0] == tmp[-1]:    # 自己换自己可还行
-                            print('自己换自己error', self.gm, play.play)
+                            if tmp[0] == 'martico01':
+                                print('martico01 enters the game for martica02')
+                                print(self.gm, play.play)
+                            else:
+                                print('自己换自己error', self.gm, play.play)
                         if (tmp[0] not in plyrs[0] and tmp[0] not in plyrs[1]) or (tmp[-1] not in plyrs[0] and tmp[-1] not in plyrs[1]):
                             continue
                         record.append({'Q': qtr, 'T': play.now(), 'SWT': [tmp[0], tmp[-1], 0 if tmp[0] in plyrs[0] else 1]})
@@ -909,6 +920,7 @@ class Game(object):
             print('匹配nba pbp文件失败', self.gm)
         if self.nba_actions:
             self.nba_pbp_lastMin()
+            # print(self.gm)
             for ix, rec in enumerate(record):
                 qtr_end = (rec['Q'] + 1) * 12 if rec['Q'] < 4 else 48 + (rec['Q'] - 3) * 5
                 s = (MPTime('%d:00.0' % qtr_end) - MPTime(rec['T'])).secs()
@@ -940,7 +952,7 @@ class Game(object):
         sws = []
         if self.nba_actions:
             for ac in self.nba_actions:
-                if ac['actionType'] == 'Substitution                            ':
+                if ac['actionType'] in ['Substitution                            ', 'Substitution']:
                     try:
                         off_pn = n2b_dict[ac['personId']]
                         # print(ac)
@@ -1119,7 +1131,11 @@ class Game(object):
             self.gn.game_scanner()
             # for i in self.gn.record:
             #     print(i)
-        plyrs_n = self.teamplyrs_nba()
+        try:
+            plyrs_n = self.teamplyrs_nba()
+        except:
+            print(self.gm)
+            raise KeyError
 
         # 整理nba官网提供的比赛详细数据
         pms = [{}, {}]
@@ -2267,7 +2283,7 @@ class GameBoxScore(object):
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoff']
     count_games = 0
-    for season in range(2000, 2021):
+    for season in range(2020, 2021):
         ss = '%d_%d' % (season, season + 1)
         # print(ss)
         for i in range(1):
@@ -2282,7 +2298,11 @@ if __name__ == '__main__':
                 if 1:
                     count_games += 1
                     game = Game(gm, regularOrPlayoffs[i])
-                    record, rot, bxs = game.preprocess()
+                    try:
+                        record, rot, bxs = game.preprocess()
+                    except:
+                        print(gm)
+                        raise KeyError
                     # record = game.game_scanner()    # 比赛过程初步胜利
                     # record = game.game_analyser(record)    # 球员数据检查
                     # record = game.game_analyser(record, T=1)    # 球员数据复查

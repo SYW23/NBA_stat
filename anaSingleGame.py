@@ -12,7 +12,7 @@ pd.options.display.expand_frame_repr = False
 pd.options.display.width = 50
 RoF = 0
 
-gm = '201201070NJN'
+gm = '202012220BRK'
 game = Game(gm, 'playoff' if RoF else 'regular')
 record = game.game_scanner()
 # for i in record:
@@ -53,8 +53,11 @@ bxs, rot = game.replayer(record, rot)
 #     print()
 
 print()
-for i in game.nba_lastMins:
-    print(i)
+# for i in game.nba_lastMins:
+#     print(i)
+
+print(bxs.tdbxs[0][0])
+print(bxs.tdbxs[1][0])
 
 # for i in record:
 #     print(i)

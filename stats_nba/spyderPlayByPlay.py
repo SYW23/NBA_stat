@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 import datetime
 import time
 
-date = datetime.datetime.strptime('2021-02-01', '%Y-%m-%d')
+date = datetime.datetime.strptime('2021-05-08', '%Y-%m-%d')
 delta = datetime.timedelta(days=1)
 today = time.strftime("%Y-%m-%d", time.localtime())
 today = str(datetime.datetime.strptime(today, '%Y-%m-%d') - delta)
@@ -27,10 +27,11 @@ while str(date) <= today:
         time.sleep(10)
         datepage = getCode(dateurl, 'UTF-8')
         URLs = datepage.find('div', class_='md:px-0')
-    URLs = URLs.find_all('section')
+    # URLs = URLs.find_all('section')
+    # print(URLs)
     if URLs:
         print(dateurl)
-        URLs = URLs[0].find_all('div', class_='md:w-7/12')
+        URLs = URLs.find_all('div', class_='md:w-7/12')
         URLs = [x.a.attrs['href'] for x in URLs]
         # print(URLs)
         for URL in URLs:

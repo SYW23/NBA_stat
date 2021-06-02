@@ -92,14 +92,18 @@ def gameMarkToDir(gm, regularOrPlayoff, tp=0):
 def read_nba_pbp(file):
     # print('读取文件', file)
     game = ''.join(LoadText(file))
+    # pbp actionList
     if game and '[{"actionNumber"' in game:
         tmp = game[game.index('[{"actionNumber"'):game.index(',"source"')]
         tmp = tmp.replace('null', 'None', 3000)
         actionList = eval(tmp)
     else:
         actionList = None
+    # 比赛信息 gameInf
     tmp = game[game.index('{"gameId":'):game.index(',"playByPlay":{')]
-    tmp = tmp.replace('null', 'None', 100)
+    tmp = tmp.replace('null', 'None', 1000)
+    tmp = tmp.replace('false', 'False', 1000)
+    tmp = tmp.replace('true', 'True', 1000)
     gameInf = eval(tmp)
     # return sorted(actionList, key=itemgetter("actionNumber")), gameInf
     # return actionList, gameInf
