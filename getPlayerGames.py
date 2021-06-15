@@ -27,10 +27,10 @@ playerInf = pickle.load(f)
 f.close()
 
 #%%
-for i in playerInf[::-1]:    # james 2067
-    url = i[1]
+for i in playerInf:    # james 2067
+    url = 'https://www.basketball-reference.com/players/%s/%s.html' % (i[0], i)
     print(url)
-    last_season = int(i[7])
+    last_season = int(playerInf[i][2])
     if last_season > 2018:
         # 获取网页源代码
         playerPage = getCode(url, 'UTF-8')
@@ -39,7 +39,7 @@ for i in playerInf[::-1]:    # james 2067
         # 球员英文名
         playerEnglishName = playerPage.find_all('h1', itemprop="name")[0].string
         pm = url.split('/')[-1][:-5]
-        pn = i[1].split('/')[-1][:-5]
+        pn = playerInf[i][0][1].split('/')[-1][:-5]
         
         # -----常规赛-----
         seasonAVE = []
@@ -68,7 +68,7 @@ for i in playerInf[::-1]:    # james 2067
                 seasonURL = 'https://www.basketball-reference.com/' + th.a.attrs['href']
                 if seasonURL not in seasonURLs:
                     seasonURLs.append(seasonURL)
-                    print(seasonURL[-5:-1])
+                    print(seasonURL[-4:])
                     seasonPage = getCode(seasonURL, 'UTF-8')
                     title = seasonPage.find('div', class_='section_heading').find_all('span')    # 表格标题，用于排除季后赛
                     if 'Playoffs' not in title[0].attrs['data-label']:

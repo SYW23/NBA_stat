@@ -53,7 +53,6 @@ estimator.fit(ps3)
 label_pred3 = estimator.labels_
 
 
-
 for c in range(cs2):
     tmp = ps2[label_pred2 == c]
     plt.scatter(tmp[:, 0], tmp[:, 1], c=colors[c], marker='o', label='2-points %d' % c)
