@@ -65,21 +65,21 @@ class GameReviewer(object):
             tmp[i] = (bxsc[0] + 0.5 * bxsc[3]) / bxsc[1]
         return tmp
 
-    def TOVperc(self):    # 四要素之一：失误率
+    def TOVperc(self):    # 四要素之二：失误率
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
             tmp[i] = bxsc[15] / bxsc[18]
         return tmp
 
-    def ORBperc(self):    # 四要素之一：进攻篮板率
+    def ORBperc(self):    # 四要素之三：进攻篮板率
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']
             tmp[i] = bxsc[9] / (bxsc[9] + self.bxs.tdbxs[i - 1][0]['team'][10])
         return tmp
 
-    def FTr(self):    # 四要素之一：造罚球率
+    def FTr(self):    # 四要素之四：造罚球率
         tmp = [0, 0]
         for i in range(2):
             bxsc = self.bxs.tdbxs[i][0]['team']

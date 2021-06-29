@@ -1071,6 +1071,7 @@ class Game(object):
                         if list(r)[2] == list(rec)[2]:
                             if 'MK' in r or 'MS' in r:
                                 item = 'MK' if 'MK' in r else 'MS'
+                                # print(r, rec)
                                 if (r[item][1] == 1 and rec[item][1] == 1 and r['D'] == rec['D']) or (r[item][1] != 1 and r[item][1] == rec[item][1]):
                                     return i, r
                                 else:
@@ -1154,6 +1155,7 @@ class Game(object):
                 if k in plyr_stats:
                     tmp = pms[i][k]
                     gs = [int(x) for x in list(plyr_stats[k][0])]
+                    # print(gs)
                     gs = gs[:2] + gs[3:5] + gs[6:8] + gs[9:-1]
                     e = self.error_stats(tmp, gs)
                     if e:
@@ -1208,6 +1210,7 @@ class Game(object):
                                         toName = "[error_index[ix][1]]"
 
                                 # ===========================多记=============================
+                                # print(tmp, gs, tmp[ix], gs[ix])
                                 if self.gn.record and tmp[ix] < gs[ix]:
                                     for ii, rec in enumerate(record):
                                         if error_index[ix][1] in rec and eval('rec' + toName) == k:
@@ -2283,10 +2286,10 @@ class GameBoxScore(object):
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoff']
     count_games = 0
-    for season in range(2020, 2021):
+    for season in range(2019, 2020):
         ss = '%d_%d' % (season, season + 1)
         # print(ss)
-        for i in range(1):
+        for i in range(1, 2):
             season_dir = 'D:/sunyiwu/stat/data/seasons_scanned/%s/' % ss
             if not os.path.exists(season_dir):
                 os.mkdir(season_dir)

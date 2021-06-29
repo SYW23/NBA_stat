@@ -57,7 +57,7 @@ print()
 #     print(i)
 
 print(bxs.tdbxs[0][0])
-print(bxs.tdbxs[1][0])
+# print(bxs.tdbxs[1][1])
 
 # for i in record:
 #     print(i)

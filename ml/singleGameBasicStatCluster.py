@@ -16,9 +16,7 @@ import pandas as pd
 from collections import Counter
 from util_clusters import mse, elbow, cl_cts_finetuning, count_and_top20, outputdf
 np.set_printoptions(suppress=True)
-f = open('../data/playermark2playername.pickle', 'rb')
-pm2pn = pickle.load(f)
-f.close()
+pm2pn = LoadPickle('../data/playermark2playername.pickle')
 load = 1
 
 
