@@ -2286,7 +2286,7 @@ class GameBoxScore(object):
 if __name__ == '__main__':
     regularOrPlayoffs = ['regular', 'playoff']
     count_games = 0
-    for season in range(2019, 2020):
+    for season in range(2020, 2021):
         ss = '%d_%d' % (season, season + 1)
         # print(ss)
         for i in range(1, 2):

@@ -3,6 +3,7 @@ sys.path.append('../')
 from util import LoadPickle, writeToPickle
 from klasses.Game import Game
 import os
+import time
 import pickle
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -11,7 +12,7 @@ from sklearn import metrics
 import numpy as np
 import pandas as pd
 from collections import Counter
-from util_clusters import mse, ios, deDuplicated, outputdf
+from util_clusters import mse, ios, deDuplicated, plyrInLeaf_ranking, amongLeafs_ranking, outputdf, yieldSingleGameStatsAllSeasons
 np.set_printoptions(suppress=True)
 plt.rcParams['font.sans-serif']=['KaiTi', 'SimHei']
 plt.rcParams['axes.unicode_minus'] = False
@@ -131,26 +132,36 @@ class Basic16_clustor(object):
         self.label_pred = self.estimator.predict(self.stats)    # 按照排序后的center重新确定label
         # print('选定簇的个数：%d' % k)
     
-    def count_and_top20(self):
+    def count_and_topN(self, N=30):
+        '''
+        统计节点分裂后，分到每一类的样本数，以及每一类中场次前N位的球员
+        '''
         df = pd.DataFrame(columns=self.cols)
         for i in range(self.cs):
             tmp = self.estimator.cluster_centers_[i] * self.absmax
             tmp = pd.DataFrame(tmp.reshape((1, -1)), columns=self.cols)
             tmp['COUNT'] = np.sum(self.label_pred == i)
-            # 每一类中球员占比前n名
+            # 每一类中球员场次排名前N位
             tmp_p = self.plyrs[np.where(self.label_pred == i)[0]]
-            top20 = Counter(tmp_p).most_common(20)
-            top20 = [(self.pm2pn[x[0]], x[1]) for x in top20]
-            tmp['plyrs'] = str(top20)
-            # print()
+            topN = Counter(tmp_p).most_common(N)
+            topN = [(self.pm2pn[x[0]], x[1]) for x in topN]
+            tmp['plyrs'] = str(topN)
             df = df.append(tmp.iloc[0])
         self.df = df
     
-    def outputdf(self, save=''):
-        self.count_and_top20()
+    def outputCts(self, save=''):
+        self.count_and_topN()
         self.df = outputdf(self.df)
         if save:
             self.df.to_csv(save + '.csv', index=False)
+    
+    def outputStats(self, save=''):
+        df = pd.DataFrame(self.stats * self.absmax, columns=self.cols)
+        df = outputdf(df, single=True)
+        df['plyr'] = [self.pm2pn[x] for x in self.plyrs]
+        df['gamemark'] = self.gamemarks
+        if save:
+            df.to_csv(save + '.csv', index=False)
 
 
 class Basic16_clustorDiverg(object):
@@ -165,12 +176,19 @@ class Basic16_clustorDiverg(object):
         self.leafNo = 1
         self.father = None
         self.No = '1'
+        self.shape = 0
     
     def doKMeans(self, repeat):
+        '''
+        使用KMeans进行节点分裂
+        '''
         self.clustor.determineK(repeat)
-        self.clustor.outputdf()
+        self.clustor.outputCts()
     
     def createLeaves(self, maxcs=10):
+        '''
+        按照分裂出的聚类中心生成子节点
+        '''
         for i in range(self.clustor.cs):
             self.leaves.append(Basic16_clustorDiverg(Basic16_clustor(maxcs=maxcs)))
             self.leaves[-1].clustor.stats = self.clustor.stats[self.clustor.label_pred == i]
@@ -181,8 +199,60 @@ class Basic16_clustorDiverg(object):
             self.leaves[-1].leafNo = i + 1
             self.leaves[-1].father = self.No
             self.leaves[-1].No = self.No + '-%d' % self.leaves[-1].leafNo
-            
-
+            self.leaves[-1].shape = self.leaves[-1].clustor.stats.shape[0]
+    
+    # =========判断节点是否可再分=========
+    def isFather(self):
+        if self.leaves:
+            return True
+        return False
+    # ==================================
+    
+    # =========输出节点信息========================================================================
+    def outputCts(self, save=''):
+        '''
+        输出父节点分裂出的聚类中心(csv)    *No必须是一个父节点
+        '''
+        if not self.isFather():
+            print('func outputCts err: 非父节点无分裂聚类中心')
+        self.clustor.df.to_csv(fname + '.csv', index=False)
+    
+    def outputStats(self, save=''):
+        '''
+        输出节点的所有球员数据(csv)
+        '''
+        self.clustor.outputStats(save=save)
+    # ===========================================================================================
+    
+    # =========节点内球员数据排名==============================================================================================
+    def plyrRanking(self, pm):
+        '''
+        统计单个球员在某一节点内部各项数据的排名情况，分值越大越好
+        '''
+        index = self.clustor.plyrs == pm
+        percent = self.clustor.stats[index].shape[0] / self.clustor.stats.shape[0]
+        ranking = plyrInLeaf_ranking(index, self.clustor.stats)
+        return percent, ranking
+    
+    def allPlyrsLeafRanking(self, plyrs):
+        '''
+        统计某一节点内部各球员各项数据的排名情况
+        '''
+        null = np.zeros((16, )) - 1
+        nums = self.clustor.stats.shape[0]
+        # print(self.clustor.plyrs.shape)
+        selections = self.clustor.plyrs == plyrs
+        plyr_stats = [self.clustor.stats[x] for x in selections]
+        games = np.array([x.shape[0] for x in plyr_stats])
+        percent = games / nums    # 每个球员在此叶子节点中的占比
+        plyr_means = [np.mean(x, axis=0) if x.shape[0] > 0 else x for x in plyr_stats]
+        ranking = np.array([np.sum(x > self.clustor.stats, axis=0) / nums if x.shape[0] > 0 else null for x in plyr_means])
+        ranking[ranking == -1] = np.nan
+        # print(ranking.shape)    # (1178, 16)
+        return games, percent, ranking
+    # ======================================================================================================================
+    
+    
 class Basic16_clustorTree(object):
     def __init__(self, root, threshold):
         self.root = root
@@ -191,11 +261,15 @@ class Basic16_clustorTree(object):
         self.colors = ['royalblue', 'darkorange', 'gold', 'r', 'green',
                        'lime', 'darkorchid', 'darkblue', 'dimgrey']
         self.threshold = threshold
+        self.leafNos = 0    # 叶子节点个数
         
+    # =========生成树===================================================================================================
     def generatorKMeans(self, maxN, maxcs=10, repeat=1000):
+        '''
+        生成树
+        '''
         queue = []
         queue.append(self.root)
-        count = 0
         while True:
             if not queue:
                 break
@@ -216,17 +290,23 @@ class Basic16_clustorTree(object):
                 print('\t节点发散—>%d' % first.clustor.cs)
                 # print(first.clustor.df)
                 first.createLeaves(maxcs=maxcs)
+                # 节省内存：清空根节点以外节点的stats、plyrs、gamemarks
+                first.clustor.stats = None
+                first.clustor.plyrs = None
+                first.clustor.gamemarks = None
                 for p in first.leaves:
                     queue.append(p)
             else:
-                count += 1
-                print('\t叶子节点No.%d  %s\t%d\t%f' % (count, first.No, first.clustor.stats.shape[0], clustorIOS))
+                self.leafNos += 1
+                print('\t叶子节点No.%d  %s\t%d\t%f' % (self.leafNos, first.No, first.clustor.stats.shape[0], clustorIOS))
             queue.remove(first)
-        print('叶子节点共%d个' % count)
+        print('叶子节点共%d个' % self.leafNos)
+    # ==================================================================================================================
     
+    # =========节点定位方法==============================
     def findEndLeaves(self):
         '''
-        yield叶子节点
+        层序遍历，yield所有叶子节点
         '''
         queue = []
         queue.append(self.root)
@@ -240,9 +320,9 @@ class Basic16_clustorTree(object):
                 yield first
             queue.remove(first)
     
-    def findLeaf(self, No):
+    def findDiverg(self, No):
         '''
-        给定叶子节点标号，找到叶子节点
+        给定节点标号，定位并返回该节点
         '''
         s = No.split('-')[1:]
         f = self.root
@@ -252,104 +332,27 @@ class Basic16_clustorTree(object):
     
     def findFather(self, No):
         '''
-        给定节点标号，找到其父节点
+        给定节点标号，定位并返回其父节点
         '''
-        return self.findLeaf(self.findLeaf(No).father)
+        assert No != '1'
+        return self.findDiverg(self.findDiverg(No).father)
+    # =================================================
     
-    def findLeafCt(self, No):
+    # =========节点聚类中心=================================================
+    def findCt(self, No):
         '''
-        返回叶子节点聚类中心
+        返回节点聚类中心
         '''
+        assert No != '1'
         father = self.findFather(No)
         return father.clustor.estimator.cluster_centers_[int(No[-1]) - 1]
+    # ====================================================================
     
-    def iosOfLeaf(self, No):
+    # =========球员数据整树推演======================================================
+    def predictThorough(self, stats, single=False):
         '''
-        给定叶子节点标号，计算其各点距聚类中心的平均欧氏距离
+        数据整树推演(将数据从根节点一直推算至叶子节点)
         '''
-        leaf = self.findLeaf(No)
-        return ios(self.findLeafCt(No), leaf.clustor.stats)
-    
-    def printLeafCts(self, No, fname=''):
-        '''
-        输出节点的聚类中心（csv），只适用于非叶子节点
-        '''
-        leaf = self.findLeaf(No)
-        leaf.clustor.outputdf()
-        # print(leaf.clustor.df)
-        if fname:
-            leaf.clustor.df.to_csv('%s.csv' % fname, index=False)
-    
-    def printLeafStats(self, No, fname=''):
-        '''
-        输出节点的所有球员数据（csv）
-        '''
-        leaf = self.findLeaf(No)
-        df = pd.DataFrame(leaf.clustor.stats * leaf.clustor.absmax, columns=leaf.clustor.cols)
-        df = outputdf(df, single=True)
-        df['plyr'] = [leaf.clustor.pm2pn[x] for x in leaf.clustor.plyrs]
-        df['gamemark'] = leaf.clustor.gamemarks
-        if fname:
-            df.to_csv('%s.csv' % fname, index=False)
-            
-    def plyrInitialKlass(self, pm, ROF):
-        '''
-        输出指定球员每场比赛数据在初始9大类中的占比饼图
-        '''
-        stat_plyr = self.root.clustor.stats[self.root.clustor.plyrs == pm]
-        label_pred = self.root.clustor.estimator.predict(stat_plyr)
-        part = np.array([np.sum(label_pred == i) / label_pred.shape[0] for i in range(self.root.clustor.cs)])
-        part = part[part != 0]
-        # print(part)
-        labels = np.array([self.klass[x] for x in np.argwhere(part != 0).reshape(1, -1)[0]])[part.argsort()[::-1]]
-        colors = np.array([self.colors[x] for x in np.argwhere(part != 0).reshape(1, -1)[0]])[part.argsort()[::-1]]
-        part = part[part.argsort()[::-1]]
-        lt25 = np.sum(part >= 0.25)
-        explode = [0.06] * lt25 + [0] * (part.shape[0] - lt25)
-        
-        plt.figure(figsize=(15, 9))
-        _, texts, _ = plt.pie(part, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%', startangle=120)
-        for t in texts:
-            t.set_size(10)
-        plt.title(self.root.clustor.pm2pn[pm] + '  %s共计%d场比赛\n' % (ROF[0].upper() + ROF[1:], label_pred.shape[0]))
-        plt.axis('equal')
-        plt.legend()
-        plt.show()
-    
-    def plyrLeafRanking(self, pm, No):
-        '''
-        统计单个球员在某一节点内部各项数据的排名情况
-        '''
-        leaf = self.findLeaf(No)
-        # print(leaf.clustor.stats.shape, (leaf.clustor.plyrs == pm).shape)
-        plyr_stats = leaf.clustor.stats[leaf.clustor.plyrs == pm]
-        percent = plyr_stats.shape[0] / leaf.clustor.stats.shape[0]
-        # print('占比:', percent)
-        ranking = np.sum(np.mean(plyr_stats, axis=0) > leaf.clustor.stats, axis=0) / leaf.clustor.stats.shape[0]
-        # print(ranking)
-        return percent, ranking
-    
-    def allPlyrsLeafRanking(self, plyrs, No):
-        '''
-        统计所有球员在某一节点内部各项数据的排名情况
-        '''
-        leaf = self.findLeaf(No)
-        null = np.zeros((16, )) - 1
-        nums = leaf.clustor.stats.shape[0]
-        selections = leaf.clustor.plyrs == plyrs
-        plyr_stats = [leaf.clustor.stats[x] for x in selections]
-        games = np.array([x.shape[0] for x in plyr_stats])
-        percent = games / nums    # 每个球员在此叶子节点中的占比
-        plyr_means = [np.mean(x, axis=0) if x.shape[0] > 0 else x for x in plyr_stats]
-        ranking = np.array([np.sum(x > leaf.clustor.stats, axis=0) / nums if x.shape[0] > 0 else null for x in plyr_means])
-        ranking[ranking == -1] = np.nan
-        return games, percent, ranking
-    
-    def predictThorough(self, stats):
-        # clustor = self.root.clustor
-        # label_pred = clustor.estimator.predict(stats)
-        # print(label_pred.shape)
-        
         queue = []
         queue.append([self.root, stats])
         res = {}
@@ -366,29 +369,74 @@ class Basic16_clustorTree(object):
                     queue.append([first[0].leaves[p], first[1][label_pred == p]])
             else:
                 res[first[0].No] = len(first[1])
-            # if not first.leaves:
-                # yield first
             queue.pop(0)
-        return res
+        if single:
+            return list(res)[0]
+        ixs = np.zeros((len(self.leafNos), ))
+        print(res)
+        for c in res:
+            ixs[np.where(self.leafNos == c)[0][0]] = res[c]
+        ixs = ixs[self.leafRankings_order]
+        return ixs
+    # ============================================================================
     
-    def leafRanking(self, ROF):
-        leafRankings = []
+    # =========树的自解析=============================================
+    def leafRoughRanking(self, ROF):
+        '''
+        叶子节点模糊排名
+        '''
+        leafCts, Nos, counts, leafNos = [], [], [], []
         for leaf in self.findEndLeaves():
-            ct = self.findLeafCt(leaf.No)
-            leafRankings.append(np.sum(ct > self.root.clustor.stats, axis=0) / self.root.clustor.stats.shape[0])
-        leafRankings = np.array(leafRankings)
-        order = np.argsort(np.mean(leafRankings, axis=1))[::-1]
-        leafRankings = leafRankings[order]
-        df = pd.DataFrame(leafRankings, columns=self.root.clustor.cols)
-        df['RK'] = order + 1
+            leafNos.append(leaf.No)
+            ct = self.findCt(leaf.No)
+            leafCts.append(ct)
+            Nos.append("'%s'" % leaf.No)
+            counts.append(leaf.clustor.stats.shape[0])
+        leafCts = np.array(leafCts) * self.root.clustor.absmax
+        
+        df = pd.DataFrame(leafCts, columns=self.root.clustor.cols)
+        # print(df)
+        df = outputdf(df, single=True)
+        df['ave'] = amongLeafs_ranking(leafCts)
+        df['No'] = Nos
+        df['COUNTS'] = counts
+        df.sort_values('ave', ascending=True, inplace=True)
         df.to_csv('leafRankings_%s.csv' % ROF)
+        self.leafRankings_order = df.index.values
+        self.leafNos = np.array(leafNos)
+    # ==============================================================
+
+    # =========初始8/9类分析============================================================================================
+    def plyrInitialKlass(root, pm, ROF):
+        '''
+        输出指定球员每场比赛数据在初始9大类中的占比饼图
+        '''
+        label_pred = root.root.clustor.label_pred[root.root.clustor.plyrs == pm]
+        part = np.array([np.sum(label_pred == i) / label_pred.shape[0] for i in range(root.root.clustor.cs)])
+        part = part[part != 0]
+        # print(part)
+        labels = np.array([root.klass[x] for x in np.argwhere(part != 0).reshape(1, -1)[0]])[part.argsort()[::-1]]
+        colors = np.array([root.colors[x] for x in np.argwhere(part != 0).reshape(1, -1)[0]])[part.argsort()[::-1]]
+        part = part[part.argsort()[::-1]]
+        lt25 = np.sum(part >= 0.25)
+        explode = [0.06] * lt25 + [0] * (part.shape[0] - lt25)
+        
+        plt.figure(figsize=(15, 9))
+        _, texts, _ = plt.pie(part, explode=explode, labels=labels, colors=colors, autopct='%1.1f%%', startangle=120)
+        for t in texts:
+            t.set_size(10)
+        plt.title(root.root.clustor.pm2pn[pm] + '  %s共计%d场比赛\n' % (ROF[0].upper() + ROF[1:], label_pred.shape[0]))
+        plt.axis('equal')
+        plt.legend()
+        plt.show()
+    # ================================================================================================================
 
 
 if __name__ == '__main__':
     
     mode = 0    # 常规赛0季后赛1
     
-    if mode:
+    if mode:    # 季后赛
         maxcs = 8
         maxN = 100
         repeat = 1000
@@ -399,20 +447,21 @@ if __name__ == '__main__':
                      '肉盾替补', '空间射手', '垃圾时间']
         rootColors = ['royalblue', 'darkorange', 'gold', 'r', 'lime',
                       'darkblue', 'green', 'dimgrey']
-    else:
-        maxcs = 10
-        maxN = 5000
-        repeat = 500
+        max_plyr_in_one_game = 8
+    else:    # 常规赛
+        maxcs = 11
+        maxN = 2000
+        repeat = 1000
         fname = '2000_2021'
         ROF = 'regular'
-        threshold = 0.25
+        threshold = 0.2
         rootKlass = ['制霸篮下', '持球核心', '射术为王', '节节败退', '内线肉盾',
                      '高配首发', '中规中矩', '到点轮换', '肉盾替补', '垃圾时间']
         rootColors = ['gold', 'royalblue', 'darkorange', 'r', 'y',
                       'lime', 'green', 'darkorchid', 'darkblue', 'dimgrey']
-        
+        max_plyr_in_one_game = 8
 # =============================================================================
-#     #%%
+#     # %%
 #     # 创建根聚类器
 #     rootClustor = Basic16_clustor(maxcs=maxcs)
 #     rootClustor.readfiles('%s_%s_singleGameBasicStats' % (fname, ROF))
@@ -427,7 +476,7 @@ if __name__ == '__main__':
 #     writeToPickle('%s_%s_Basic16_clustorTree.pickle' % (fname, ROF), root)
 # =============================================================================
 
-    #%%
+    # %%
     MVPs = ['duncati01', 'garneke01', 'nashst01', 'nowitdi01', 'bryanko01',
             'jamesle01', 'rosede01', 'duranke01', 'curryst01', 'westbru01',
             'hardeja01', 'antetgi01', 'jokicni01']
@@ -437,96 +486,84 @@ if __name__ == '__main__':
     root.colors = rootColors
     plyrs = LoadPickle('%s_%s_singleGameBasicStats_plyrs.pickle' % (fname, ROF))
     plyrs = np.array(list(set(plyrs))).reshape(-1, 1)
-    x, count, countFather = 0, 0, 0
+    x, countLeaf, countFather = 0, 0, 0
     father = {}
     # 每个叶子节点  球员的比赛数games
     #             球员的比赛数占叶子节点总比赛数的比例percent
-    #             球员的各项数据在叶子节点中的排名（前百分比）allPlyrsEndLeafRankings
-    #             每个叶子节点聚类中心聚类中心（上场时间，+/-值与上场时间的比值）
-    games, percent, allPlyrsEndLeafRankings, endLeafRanking = [], [], [], []
+    #             球员的各项数据在叶子节点中的排名（前百分比）allPlyrsLeafRankings
+    games, percent, allPlyrsLeafRankings = [], [], []
     
-    leafNos = []
-    for endLeaf in root.findEndLeaves():
-        count += 1
-        x += endLeaf.clustor.stats.shape[0]
-        leafNos.append(endLeaf.No)
-        # 计算父节点的类间距离
-        if endLeaf.father not in father:
-            fatherLeaf = root.findFather(endLeaf.No)
+    maxN, minN, maxLevel = 0, 10000, 0
+    for leaf in root.findEndLeaves():
+        countLeaf += 1
+        x += leaf.clustor.stats.shape[0]
+        # 父节点统计
+        if leaf.father not in father:
+            fatherLeaf = root.findFather(leaf.No)
             countFather += 1
-            father[endLeaf.father] = ''
-            # 打印父节点的聚类中心
-            # root.printLeafCts('%s' % fatherLeaf.No, fname='./k10_fatherLeafs/%s' % fatherLeaf.No)
-            if endLeaf.father == '1':
-                print('父 ', endLeaf.father, fatherLeaf.clustor.stats.shape, fatherLeaf.clustor.cs)
-            else:
-                print('父 ', endLeaf.father, endLeaf.clustorIOS, fatherLeaf.clustor.stats.shape, fatherLeaf.clustor.cs)
-        
+            father[leaf.father] = ''
+            # print('父 ', leaf.father, leaf.clustorIOS if leaf.father != '1' else '', fatherLeaf.clustor.stats.shape, fatherLeaf.clustor.cs)
         # 统计每个叶子节点中所有球员的占比、ranking
-        games_, percent_, ranking = root.allPlyrsLeafRanking(plyrs, endLeaf.No)
+        games_, percent_, ranking = leaf.allPlyrsLeafRanking(plyrs)
         games.append(games_)
         percent.append(percent_)
         ranking[ranking == -1] = np.nan
-        allPlyrsEndLeafRankings.append(ranking)
+        allPlyrsLeafRankings.append(ranking)
+        if leaf.clustor.stats.shape[0] > maxN:
+            maxN = leaf.clustor.stats.shape[0]
+        if leaf.clustor.stats.shape[0] < minN:
+            minN = leaf.clustor.stats.shape[0]
+        if leaf.level > maxLevel:
+            maxLevel = leaf.level
+        # print('\t|__叶子', leaf.No, leaf.clustorIOS, leaf.clustor.stats.shape)
         
-        # 计算叶子节点聚类中心各项排名
-        ct = root.findLeafCt(endLeaf.No)
-        endLeafRanking.append(np.sum(ct > root.root.clustor.stats, axis=0) / root.root.clustor.stats.shape[0])
-        
-        
-        interOuSqr = root.iosOfLeaf(endLeaf.No)
-        print('\t|__叶子', endLeaf.No, interOuSqr, endLeaf.clustor.stats.shape, endLeaf.clustor.stats.shape[0] / interOuSqr)
-        
-    print('总数据量:', x, '父节点数量:', countFather, '叶子节点数量:', count)
+    print('总数据量:', x, '父节点数量:', countFather, '叶子节点数量:', countLeaf, '叶子节点最大样本数:', maxN, '叶子节点最小样本数:', minN, '树的最大深度:', maxLevel)
     games = np.array(games)
     percent = np.array(percent)
-    leafNos = np.array(leafNos)
-    endLeafRanking = np.array(endLeafRanking)
-    endLeafRanking_order = np.argsort(np.mean(endLeafRanking, axis=1))[::-1]
-    allPlyrsEndLeafRankings = np.array(allPlyrsEndLeafRankings).transpose(1, 0, 2)
+    allPlyrsLeafRankings = np.array(allPlyrsLeafRankings).transpose(1, 0, 2)
+    root.leafRoughRanking(ROF)
+    # writeToPickle('allPlyrsLeafRankings.pickle', allPlyrsLeafRankings)
     
-    # writeToPickle('allPlyrsEndLeafRanking.pickle', allPlyrsEndLeafRankings)
-    
-    # root.printLeafCts('1-2-4-3-2', fname='./1-2-4-3-2')
-    # root.printLeafStats('1-2-4-3-2', fname='1-2-4-3-2')
-    # root.plyrInitialKlass('greendr01', ROF)
-    # print(root.plyrLeafRanking('jamesle01', '1-2'))
-    
-    #%%
-    # 绘制单个球员叶子节点各项数据ranking矩阵
-    pm = 'jamesle01'
-    xticks = np.arange(endLeafRanking_order.shape[0])
-    yticks = np.arange(root.root.clustor.stats.shape[1])
-    plt.matshow(allPlyrsEndLeafRankings[np.where(plyrs == pm)[0][0]][endLeafRanking_order].T)
-    plt.xticks(xticks, [str(x) for x in games[:, np.where(plyrs == pm)[0][0]][endLeafRanking_order]], rotation=45)
-    plt.yticks(yticks, root.root.clustor.cols)
-    plt.colorbar()
-    
-    # MVP球员叶子节点各项数据ranking矩阵
-    fig, ax = plt.subplots(13, figsize=(120,80))
-    for i in range(len(MVPs)):
-        ax[i].matshow(allPlyrsEndLeafRankings[np.where(plyrs == MVPs[i])[0][0]][endLeafRanking_order].T)
-        ax[i].set_xticks(xticks)
-        ax[i].set_xticklabels([str(x) for x in games[:, np.where(plyrs == MVPs[i])[0][0]][endLeafRanking_order]], rotation=60, fontsize=18)
-        ax[i].set_yticks(yticks)
-        ax[i].set_yticklabels(root.root.clustor.cols)
-        ax[i].set_ylabel(root.root.clustor.pm2pn[MVPs[i]], fontsize=50)
-    # plt.colorbar(ax=ax[0])
-    plt.savefig('mvp_%s.png' % ROF)
-    plt.close()
     
 # =============================================================================
-#     #%%
-#     # 球员数据整树推演
-#     resd = root.predictThorough(root.root.clustor.stats[root.root.clustor.plyrs == 'jamesle01'])
-#     ixs = np.zeros((len(leafNos), ))
-#     for c in resd:
-#         ixs[np.where(leafNos == c)[0][0]] = resd[c]
-#     ixs = ixs[endLeafRanking_order]
+#     # %%
+#     root.plyrInitialKlass('greendr01', ROF)
+#     print(root.findDiverg('1-1-2-1-1').plyrRanking('jamesle01'))
 # =============================================================================
 
+
+# =============================================================================
+#     # %%
+#     # 绘制单个球员叶子节点各项数据ranking矩阵
+#     pm = 'jamesle01'
+#     xticks = np.arange(root.leafRankings_order.shape[0])
+#     yticks = np.arange(root.root.clustor.stats.shape[1])
+#     plt.matshow(allPlyrsLeafRankings[np.where(plyrs == pm)[0][0]][root.leafRankings_order].T)
+#     plt.xticks(xticks, [str(x) for x in games[:, np.where(plyrs == pm)[0][0]][root.leafRankings_order]], rotation=45)
+#     plt.yticks(yticks, root.root.clustor.cols)
+#     plt.colorbar()
+#     
+#     # MVP球员叶子节点各项数据ranking矩阵
+#     fig, ax = plt.subplots(13, figsize=(120,80))
+#     for i in range(len(MVPs)):
+#         ax[i].matshow(allPlyrsLeafRankings[np.where(plyrs == MVPs[i])[0][0]][root.leafRankings_order].T)
+#         ax[i].set_xticks(xticks)
+#         ax[i].set_xticklabels([str(x) for x in games[:, np.where(plyrs == MVPs[i])[0][0]][root.leafRankings_order]], rotation=60, fontsize=18)
+#         ax[i].set_yticks(yticks)
+#         ax[i].set_yticklabels(root.root.clustor.cols)
+#         ax[i].set_ylabel(root.root.clustor.pm2pn[MVPs[i]], fontsize=50)
+#     # plt.colorbar(ax=ax[0])
+#     plt.savefig('mvp_%s.png' % ROF)
+#     plt.close()
+# =============================================================================
     
-    #%%
+# =============================================================================
+#     # %%
+#     # 球员数据整树推演
+#     resd = root.predictThorough(root.root.clustor.stats[root.root.clustor.plyrs == 'jamesle01'])
+# =============================================================================
+    
+    # %%
     # 球员分赛季数据整树推演
 # =============================================================================
 #     stats_bySeason = LoadPickle('2000_2021_singleGameBasicStatsByPlayerBySeason.pickle')
@@ -557,10 +594,10 @@ if __name__ == '__main__':
 #             if plyr_mean[4] + 2 * plyr_mean[0] + 3 * plyr_mean[2] > 5 or plyr in mvp_shares[ss]['Player'].values:
 #                 stats_plyr[0] = np.array(stats_plyr[0]) / absmax
 #                 resd = root.predictThorough(stats_plyr[0])
-#                 ixs = np.zeros((len(leafNos), ))
+#                 ixs = np.zeros((len(root.leafNos), ))
 #                 for c in resd:
-#                     ixs[np.where(leafNos == c)[0][0]] = resd[c]
-#                 ixs = ixs[endLeafRanking_order]
+#                     ixs[np.where(root.leafNos == c)[0][0]] = resd[c]
+#                 ixs = ixs[root.leafRankings_order]
 #                 ixs = np.append(ixs, [stats_plyr[1], stats_plyr[2], seasonBP_ave[ss], fullGames[ss]])
 #                 # print(ixs)
 #                 share = 0
@@ -576,7 +613,7 @@ if __name__ == '__main__':
 # =============================================================================
     
 # =============================================================================
-#     #%%
+#     # %%
 #     # 球员MVP赛季数据整树推演
 #     stats_bySeason = LoadPickle('2000_2021_singleGameBasicStatsByPlayerBySeason.pickle')
 #     absmax = LoadPickle('2000_2021_singleGameBasicStats_absmax.pickle')
@@ -591,54 +628,114 @@ if __name__ == '__main__':
 #         stats_plyr = stats_bySeason[mvp][ss]
 #         stats_plyr[0] = np.array(stats_plyr[0]) / absmax
 #         resd = root.predictThorough(stats_plyr[0])
-#         ixs = np.zeros((len(leafNos), ))
+#         ixs = np.zeros((len(root.leafNos), ))
 #         for c in resd:
-#             ixs[np.where(leafNos == c)[0][0]] = resd[c]
-#         mvps.append(ixs[endLeafRanking_order])
+#             ixs[np.where(root.leafNos == c)[0][0]] = resd[c]
+#         mvps.append(ixs[root.leafRankings_order])
 #     mvps = np.array(mvps)
 #     
 #     df = pd.DataFrame(mvps, index=names)
 #     df.to_csv('mvp_seasons.csv')
 # =============================================================================
-    
+
 # =============================================================================
-#     #%%
-#     # 输出所有叶子节点Ranking
-#     leafRankings = []
-#     Nos = []
-#     counts = []
-#     for leaf in root.findEndLeaves():
-#         ct = root.findLeafCt(leaf.No)
-#         leafRankings.append(np.sum(ct > root.root.clustor.stats, axis=0) / root.root.clustor.stats.shape[0])
-#         Nos.append("'%s'" % leaf.No)
-#         counts.append(leaf.clustor.stats.shape[0])
-#     leafRankings = np.array(leafRankings)
-#     # order = np.argsort(np.mean(leafRankings, axis=1))[::-1]
-#     # leafRankings = leafRankings[order]
-#     df = pd.DataFrame(leafRankings, columns=root.root.clustor.cols)
-#     df['ave'] = np.mean(leafRankings, axis=1)
-#     df['No'] = Nos
-#     df['COUNTS'] = counts
-#     
-#     df.sort_values('ave', ascending=False, inplace=True)
-#     # df['RK'] = order + 1
-#     df.to_csv('leafRankings_%s.csv' % ROF)
+#     # %%
+#     # 由叶子节点编号推得节点stats、plyrs、gamemarks等信息（节省储存空间）
+#     leaf = root.findDiverg('1-1-2-1-1')
+#     print(leaf.clustor.plyrs.shape)
+#     fs = []
+#     tmp = leaf
+#     while tmp is not root.root:
+#         fs.append(root.findFather(tmp.No))
+#         tmp = fs[-1]
+#     s = [int(x) - 1 for x in '1-1-2-1-1'.split('-')[1:]]
+#     tmp = root.root.clustor.plyrs
+#     for ix, i in enumerate(fs[::-1]):
+#         tmp = tmp[i.clustor.label_pred == s[ix]]
+#     print(tmp)
 # =============================================================================
     
+    # %%
+    def alter_wol(key, dikt, wol, x, gm, ts):
+        if key not in dikt:
+            dikt[key] = [0, 0, 0, []]
+        dikt[key][0 if wol == x else 1] += 1
+        dikt[key][3].append([gm[:-7], ts])
+    
+    def mode_module(mode):
+        return '-'.join([str(x + 1) for x in sorted(mode)[:max_plyr_in_one_game]])
+    
+    def set_module(mode):
+        return '-'.join([str(x + 1) for x in list(set(sorted(mode)[:max_plyr_in_one_game]))])
+    
+    leaf_wols = {}    # {'leafNo': [胜场数, 负场数, 胜率, [[gm, [胜队, 负队]], ...]]}
+    wol_modes = {}    # {'mode': [胜场数, 负场数, 胜率, [[gm, [胜队, 负队]], ...]]}
+    wol_sets = {}    # {'modeset': [胜场数, 负场数, 胜率, [[gm, [胜队, 负队]], ...]]}
+    count = 0
+    for _, stats_game, gm_game, wol_game, wol_teams in yieldSingleGameStatsAllSeasons(2000, 2020, ROF):
+        count += 1
+        for i in range(2):
+            roughKlass = root.root.clustor.estimator.predict(stats_game[i] / root.root.clustor.absmax)
+            roughKlass_set = set_module(roughKlass)
+            roughKlass_str = mode_module(roughKlass)
+            alter_wol(roughKlass_str, wol_modes, wol_game, i, gm_game, wol_teams)
+            alter_wol(roughKlass_set, wol_sets, wol_game, i, gm_game, wol_teams)
+            for stat in stats_game[i]:
+                # start = time.time()
+                leafNo = root.predictThorough(stat.reshape(1, -1) / root.root.clustor.absmax, single=True)
+                alter_wol(leafNo, leaf_wols, wol_game, i, gm_game, wol_teams)
+                # print('\t', time.time() - start)
+    for m in [leaf_wols, wol_modes, wol_sets]:
+        for k in m:
+            m[k][2] = m[k][0] / (m[k][1] + m[k][0])
+    
+    leaf_order = sorted(leaf_wols.items(), key=lambda x:[x[1][2], x[1][0] if x[1][2] >= 0.5 else -x[1][1]], reverse=True)    # 按胜率（首选）、胜场数（次选）排名
+    mode_order = sorted(wol_modes.items(), key=lambda x:[x[1][2], x[1][0] if x[1][2] >= 0.5 else -x[1][1]], reverse=True)
+    modeset_order = sorted(wol_sets.items(), key=lambda x:[x[1][2], x[1][0] if x[1][2] >= 0.5 else -x[1][1]], reverse=True)
+    print('总比赛数:', count)
+    
+    # %%
+    mode = [[0, 0, 0, 3, 4, 5, 6, 7, 6, 7, 7], [0, 0, 3, 3, 3, 5, 6, 7, 6, 7, 7]]
+    
+    print(wol_modes[mode_module(mode[0])][:2])
+    print(wol_sets[set_module(mode[0])][:2])
+    print(wol_modes[mode_module(mode[1])][:2])
+    print(wol_sets[set_module(mode[1])][:2])
     
     
+    # %%
+    # 预测胜率
+    def predictWLr(mode, ret='both'):    # rate: 返回预测胜率; side: 返回预测胜方; both: 返回预测胜率和胜方
+        assert ret in ['rate', 'side', 'both']
+        set_WLr = [wol_sets[set_module(mode[i])][2] for i in range(2)]
+        # print(set_WLr)
+        maxi = 0 if set_WLr[0] > set_WLr[1] else 1
+        if ret == 'side':
+            return maxi
+        max_WLr = 100 / (set_WLr[maxi] / set_WLr[maxi - 1] + 1) * set_WLr[maxi] / set_WLr[maxi - 1] if set_WLr[maxi - 1] else 100
+        min_WLr = 100 - max_WLr
+        res = [0, 0]
+        res[maxi], res[maxi - 1] = max_WLr, min_WLr
+        if ret == 'rate':
+            return res
+        else:
+            return res, maxi
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+    # print(predictWLr(mode))
+    error, count = 0, 0
+    for _, stats_game, gm_game, wol_game, _ in yieldSingleGameStatsAllSeasons(2019, 2020, ROF):
+        count += 1
+        mode = []
+        for i in range(2):
+            mode.append(root.root.clustor.estimator.predict(stats_game[i] / root.root.clustor.absmax))
+        WLr, winner = predictWLr(mode)
+        # print(WLr, winner)
+        if WLr == [50, 50]:
+            print('ooooooops', gm_game)
+        if winner != wol_game:
+            error += 1
+            print(WLr, gm_game)
+    print('accuracy:', 1 - error / count, '%')
     
     
     

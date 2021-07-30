@@ -13,18 +13,52 @@ import pandas as pd
 from collections import Counter
 np.set_printoptions(suppress=True)
 
+cols = ['2P', '2PA', '3P', '3PA', 'FT', 'FTA', 'ORB', 'DRB',
+        'AST', 'STL', 'BLK', 'TOV', 'PF', 'BP', 'MP', '+/-']
+
 
 def mse(a, b):
     diff = np.abs(a - b)
     return np.sum(diff ** 2)
 
+
 def ios(ct, stats):
     d = stats - ct
     return np.sum(np.sqrt(np.sum(d ** 2, axis=1))) / d.shape[0]
 
+
 def deDuplicated(stats):
     df = pd.DataFrame(stats)
     return stats[~df.duplicated().values]
+
+
+def plyrInLeaf_ranking(index, stats, method='normal'):
+    df = pd.DataFrame(stats, columns=cols)
+    res = []
+    for col in cols:
+        if col not in ['BP', 'MP']:
+            tmp = df[col] / df['BP']
+            tmp = df[col].rank(ascending=True if col in ['TOV', 'PF'] else False, method='min').values[index]    # min方法排名：同分同名，后续排名空缺
+            if method == 'normal' or np.sum(index) < 3:    # 普通均值
+                tmp = np.mean(tmp) / stats.shape[0]
+            else:    # 掐头去尾
+                tmp = (np.sum(tmp) - np.min(tmp) - np.max(tmp)) / (np.sum(index) - 2) / stats.shape[0]
+            res.append(tmp)
+            # print(df[col].values[index])
+    return 1 - np.array(res)
+
+
+def amongLeafs_ranking(cts):
+    df = pd.DataFrame(cts, columns=cols)
+    rk = pd.DataFrame()
+    for col in cols:
+        if col not in ['BP', 'MP']:
+            tmp = df[col] / df['BP']
+            tmp = df[col].rank(ascending=True if col in ['TOV', 'PF'] else False, method='min')
+            rk[col] = tmp
+    return np.mean(rk, axis=1)
+    
+
 
 def elbow(stats):
     '''
@@ -111,8 +145,6 @@ def count_and_top20(cs, estimator, absmax, label_pred, plyrs, pm2pn):
     plyrs: 球员码列表（与数据集一一对应）
     pm2pn: 球员姓名转换字典
     '''
-    cols = ['2P', '2PA', '3P', '3PA', 'FT', 'FTA', 'ORB', 'DRB',
-            'AST', 'STL', 'BLK', 'TOV', 'PF', 'BP', 'MP', '+/-']
     df = pd.DataFrame(columns=cols)
     for i in range(cs):
         tmp = estimator.cluster_centers_[i] * absmax
@@ -211,6 +243,37 @@ def loadSingleGameStatsAllSeasons(start, end, ROF):
     writeToPickle('%d_%d_%s_singleGameBasicStats_gamemarks.pickle' % (start, end, ROF), gamemarks)
 
 
+def yieldSingleGameStatsAllSeasons(start, end, ROF):
+    '''
+    start: 起始赛季
+    end: 结束赛季
+    ROF: 'regular' or 'playoff'
+    '''
+    # regularOrPlayoffs = ['regular', 'playoff']
+    for season in range(start, end):
+        ss = '%d_%d' % (season, season + 1)
+        gms = os.listdir('D:/sunyiwu/stat/data/seasons/%s/%s/' % (ss, ROF))
+        for gm in tqdm(gms):
+            # print(gm)
+            game = Game(gm, ROF)
+            record, rot, bxs = game.preprocess(load=1)
+            plyrs = [[], []]
+            stats = [[], []]
+            scores = [game.bxscr[0][x][0] for x in game.bxscr[0]]
+            winner = 1 if scores[0] < scores[1] else 0
+            teams = list(game.bxscr[0])
+            teams = [teams[winner], teams[winner - 1]]
+            for RoH in range(2):
+                for plyr in bxs.tdbxs[RoH][0]:
+                    if plyr != 'team':
+                        plyrs[RoH].append(plyr)
+                        tmp = bxs.tdbxs[RoH][0][plyr][0]
+                        stats[RoH].append(tmp[[0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 14, 15, 16, 18, 19, 20]])
+            plyrs = [np.array(plyrs[0]), np.array(plyrs[1])]
+            stats = [np.array(stats[0]), np.array(stats[1])]
+            yield plyrs, stats, gm, winner, teams
+
+
 def loadSingleGameStatsByPlayerBySeason(start, end, ROF):
     '''
     start: 起始赛季
@@ -259,5 +322,7 @@ def loadSingleGameStatsByPlayerBySeason(start, end, ROF):
 
 
 if __name__ == '__main__':
-    loadSingleGameStatsAllSeasons(2000, 2020, 'playoff')
+    # loadSingleGameStatsAllSeasons(2000, 2020, 'playoff')
     # loadSingleGameStatsByPlayerBySeason(2000, 2021, 'regular')
+    for p, s, g, w, t in yieldSingleGameStatsAllSeasons(2019, 2020, 'playoff'):
+        print(p, s, g, w, t)

@@ -11,7 +11,8 @@ from bs4 import BeautifulSoup
 import datetime
 import time
 
-date = datetime.datetime.strptime('2021-05-08', '%Y-%m-%d')
+# NBA官网获取play_by_play数据
+date = datetime.datetime.strptime('2021-07-07', '%Y-%m-%d')
 delta = datetime.timedelta(days=1)
 today = time.strftime("%Y-%m-%d", time.localtime())
 today = str(datetime.datetime.strptime(today, '%Y-%m-%d') - delta)
