@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 import pandas as pd
 
-from data_source.utils.utils import getCode
+from data_source.utils.utils import get_code
 from config import storage_config, url_config, rof_note
 from utils.logger import Logger
 
@@ -15,7 +15,7 @@ logger = Logger.logger
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start_season", type=int, default=2009, help="pbp starts from 1996-1997 season")
+    parser.add_argument("--start_season", type=int, default=2023, help="pbp starts from 1996-1997 season")
     parser.add_argument("--end_season", type=int, default=2023)
     parser.add_argument("--ignore_exists", default=False, action="store_true")
     arguments = parser.parse_args()
@@ -94,18 +94,18 @@ def main(arguments):
 
         season_summary_regular, season_summary_playoff = [], []
         season_url = f"{url_config['bbr']['league']}/NBA_{season}_games.html"
-        season_games = getCode(season_url, 'UTF-8')
+        season_games = get_code(season_url, 'UTF-8')
         months = season_games.find_all('div', class_='filter')[0].find_all('a')
         month_urls = [url_config['bbr']['root'] + x.attrs['href'] for x in months]
         logger.info(f"The season has {len(month_urls)} months.")
 
         rof, summary_cols = 0, None
-        for index, monthURL in enumerate(month_urls):
-            if monthURL == 'https://www.basketball-reference.com/leagues/NBA_2020_games-september.html':
+        for index, month_url in enumerate(month_urls):
+            if month_url == 'https://www.basketball-reference.com/leagues/NBA_2020_games-september.html':
                 rof = 1
             # 月份
-            logger.info(f"\tstarting to record month {monthURL.split('-')[-1][:3].upper()}")
-            month_page = getCode(monthURL, 'UTF-8')
+            logger.info(f"\tstarting to record month {month_url.split('/')[-1].split('-')[1][:3].upper()}")
+            month_page = get_code(month_url, 'UTF-8')
             game_table = month_page.find('table', class_='stats_table').find_all('tr')
             titles, game_table = game_table[0], game_table[1:]
 
@@ -121,7 +121,9 @@ def main(arguments):
                     date = game.find_all('th')[0].attrs['csk']
                     game_details = [date] + [x.get_text().strip() for x in game_items]
                     if game_details[-1] == "Play-In Game":    # 定位附加赛
-                        rof = 1
+                        if not rof:
+                            logger.info('switch to Playoffs')
+                            rof = 1
                     # 判断比赛是否已保存
                     save_file = os.path.join(season_dir, rof_note[rof], f"{date}.csv")
                     if True and arguments.ignore_exists or not os.path.exists(save_file):
@@ -130,7 +132,7 @@ def main(arguments):
                             continue
                         try:
                             game_url = f"{url_config['bbr']['pbp']}/{game_items[-5].a.attrs['href'].lstrip('/boxscores')}"
-                            game_page = getCode(game_url, 'UTF-8')
+                            game_page = get_code(game_url, 'UTF-8')
                             plays = game_page.find('table', class_='stats_table').find_all('tr')
 
                             df_game_process = process_single_game(plays)
