@@ -122,9 +122,9 @@ def main():
     letters.pop(23)    # no name starts with 'x'
 
     start_with_letter = 0
-    for index, letter in enumerate(letters[2:3]):
+    for index, letter in enumerate(letters):
         if index < start_with_letter:
-                continue
+            continue
         # first letter of player name
         letter_url = f"{url_config['bbr']['player']}/{letter}"
         letter_page = get_code(letter_url, 'UTF-8')
@@ -132,7 +132,7 @@ def main():
         letter_player_cols, letter_players = letter_players[0], letter_players[1:]
         letter_player_cols = [x.text for x in letter_player_cols.find_all('th')]
 
-        start_with = 244
+        start_with = 0
         for ix, letter_player_row in tqdm(enumerate(letter_players)):
             if ix < start_with:
                 continue
@@ -140,7 +140,7 @@ def main():
             if len(player_basic_inf) > 0:
                 # player name
                 player = letter_player_row.find_all('th')[0].a.text
-                logger.info(f"============ {index:02d}/{letter} | {ix:03d}/{player} ============")
+                logger.info(f"============ {index:02d}/{len(letters)}/{letter} | {ix:03d}/{len(letter_players)}/{player} ============")
                 player_url = f"{url_config['bbr']['root']}{letter_player_row.find_all('th')[0].a.attrs['href']}"
                 player_page = get_code(player_url, 'UTF-8')
 

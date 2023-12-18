@@ -241,6 +241,36 @@ gamelog_titles_v6 = [
     "+/-",
 ]
 
+gamelog_titles_v7 = [
+    "Rk",
+    "G",
+    "Date",
+    "Age",
+    "Tm",
+    "AT HOME",
+    "Opp",
+    "Win/Lose",
+    "GS",
+    "MP",
+    "FG",
+    "FGA",
+    "FG%",
+    "3P",
+    "3PA",
+    "3P%",
+    "FT",
+    "FTA",
+    "FT%",
+    "ORB",
+    "DRB",
+    "TRB",
+    "AST",
+    "BLK",
+    "TOV",
+    "PF",
+    "PTS",
+]
+
 gamelog_titles = [
     gamelog_titles_v1,
     gamelog_titles_v2,
@@ -248,4 +278,5 @@ gamelog_titles = [
     gamelog_titles_v4,
     gamelog_titles_v5,
     gamelog_titles_v6,
+    gamelog_titles_v7,
 ]
