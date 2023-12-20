@@ -280,3 +280,19 @@ gamelog_titles = [
     gamelog_titles_v6,
     gamelog_titles_v7,
 ]
+
+boxscore_quarters = [
+    'game-basic',
+    'game-advanced',
+    'q1-basic',
+    'q2-basic',
+    'h1-basic',
+    'q3-basic',
+    'q4-basic',
+    'h2-basic',
+    'ot1-basic',
+    'ot2-basic',
+    'ot3-basic',
+    'ot4-basic'
+]
+
