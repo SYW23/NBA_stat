@@ -1,6 +1,6 @@
 import math
 import re
-from klass.utils import total_ordering
+from klass.order import total_ordering
 
 
 @total_ordering

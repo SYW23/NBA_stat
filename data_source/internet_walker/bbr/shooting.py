@@ -18,7 +18,7 @@ logger = Logger.logger
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start_season", type=int, default=2016, help="pbp starts from 1996-1997 season")
+    parser.add_argument("--start_season", type=int, default=2022, help="pbp starts from 1996-1997 season")
     parser.add_argument("--end_season", type=int, default=2023)
     parser.add_argument("--ignore_exists", default=False, action="store_true")
     arguments = parser.parse_args()
@@ -36,30 +36,15 @@ def initial_dir(season_dir):
         os.mkdir(playoff_dir)
 
 
-def process_single_game(boxscore_page):
-    boxscores = []
-    scores = boxscore_page.find('div', class_='scorebox')
-    teams = [x.a.attrs['href'].split('/')[2] for x in scores.find_all('strong')]  # 客主队
-    ss = [int(x.text) for x in scores.find_all('div', class_='score')]  # 比赛最终比分
-
-    wl_re = re.compile('<div>\d+-\d+</div>')
-    wl = [x[5:-6] for x in re.findall(wl_re, str(scores))]  # 当场比赛结束后球队战绩
-    if not wl:
-        wl = ['', '']
-    boxscores.append(dict({teams[0]: [ss[0], wl[0]], teams[1]: [ss[1], wl[1]]}))
-
-    for time_range in boxscore_quarters:
-        quarter_dfs = []
-        for side in range(2):
-            table = boxscore_page.find('table', id=f"box-{teams[side]}-{time_range}")
-            if not table:
-                continue
-            df = parse_table(table, eliminate_class="thead")
-            quarter_dfs.append(df)
-        if quarter_dfs:
-            boxscores.append(quarter_dfs)
-
-    return boxscores
+def process_single_game(shooting_page):
+    charts = shooting_page.find_all('div', class_='shot-area')
+    assert len(charts) == 2
+    shootings = [[], []]
+    for i in range(2):
+        shoots = charts[i].find_all('div')
+        for shoot in shoots:
+            shootings[i].append([shoot.attrs['style'], shoot.attrs['tip'], shoot.attrs['class']])
+    return shootings
 
 
 def main(arguments):
@@ -67,7 +52,7 @@ def main(arguments):
         logger.info('=' * 50)
         season_code = f"{season - 1}_{season}"
         logger.info(f"Starting to record season '{season_code}'!")
-        season_dir = os.path.join(storage_config["game_boxscore"], f"{season_code}")
+        season_dir = os.path.join(storage_config["shooting"], f"{season_code}")
         logger.info(f"storing path: {season_dir}")
         initial_dir(season_dir)
 
@@ -109,12 +94,13 @@ def main(arguments):
                         if not game_items[-5].a:
                             continue
                         try:
-                            boxscore_url = f"{url_config['bbr']['root']}{game_items[-5].a.attrs['href']}"
-                            boxscore_page = get_code(boxscore_url, 'UTF-8')
-
-                            boxscores = process_single_game(boxscore_page)
-                            write2pickle(save_file, boxscores)
-                            # 保存单场比赛数据
+                            shooting_url = f"{url_config['bbr']['root']}/boxscores/shot-chart/{game_items[-5].a.attrs['href'].lstrip('/boxscores')}"
+                            shooting_page = get_code(shooting_url, 'UTF-8')
+                            try:
+                                shootings = process_single_game(shooting_page)
+                            except:
+                                logger.info(f"missing shooting stats: {date}")
+                            write2pickle(save_file, shootings)
                             time.sleep(2)
                         except Exception as e:
                             logger.info(f"caught unexpected error: {str(e)}, {game}")
